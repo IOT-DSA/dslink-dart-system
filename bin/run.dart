@@ -6,67 +6,83 @@ import "package:dslink/io.dart";
 
 LinkProvider link;
 
-final Map<String, dynamic> NODES = {
-  "Poll_Rate": {
-    r"$name": "Poll Rate",
-    r"$type": buildEnumType([
-      "100 milliseconds",
-      "250 milliseconds",
-      "500 milliseconds",
-      "1 second",
-      "2 seconds"
-    ]),
-    r"$writable": "write",
-    "?value": "1 second"
-  },
-  "CPU_Usage": {
-    r"$name": "CPU Usage",
-    r"$type": "number",
-    "@unit": "%"
-  },
-  "Memory_Usage": {
-    r"$name": "Memory Usage",
-    r"$type": "number",
-    "@unit": "%"
-  },
-  "Total_Memory": {
-    r"$name": "Total Memory",
-    r"$type": "number",
-    "@unit": "mb"
-  },
-  "Free_Memory": {
-    r"$name": "Free Memory",
-    r"$type": "number",
-    "@unit": "mb"
-  },
-  "Used_Memory": {
-    r"$name": "Used Memory",
-    r"$type": "number",
-    "@unit": "mb"
-  },
-  "Disk_Usage": {
-    r"$name": "Disk Usage",
-    r"$type": "number",
-    "@unit": "%"
-  },
-  "Total_Disk_Space": {
-    r"$name": "Total Disk Space",
-    r"$type": "number",
-    "@unit": "mb"
-  },
-  "Used_Disk_Space": {
-    r"$name": "Used Disk Space",
-    r"$type": "number",
-    "@unit": "mb"
-  },
-  "Free_Disk_Space": {
-    r"$name": "Free Disk Space",
-    r"$type": "number",
-    "@unit": "mb"
-  }
-};
-
 main(List<String> args) async {
+  final Map<String, String> PLATFORMS = {
+    "macos": "Mac",
+    "linux": "Linux",
+    "android": "Android",
+    "windows": "Windows"
+  };
+
+  final Map<String, dynamic> NODES = {
+    "Platform": {
+      r"$type": "string",
+      "?value": PLATFORMS.containsKey(Platform.operatingSystem) ? PLATFORMS[Platform.operatingSystem] : Platform.operatingSystem
+    },
+    "Processor_Count": {
+      r"$name": "Processor Count",
+      r"$type": "number",
+      "?value": Platform.numberOfProcessors
+    },
+    "Poll_Rate": {
+      r"$name": "Poll Rate",
+      r"$type": buildEnumType([
+        "100 milliseconds",
+        "250 milliseconds",
+        "500 milliseconds",
+        "1 second",
+        "2 seconds"
+      ]),
+      r"$writable": "write",
+      "?value": "1 second"
+    },
+    "CPU_Usage": {
+      r"$name": "CPU Usage",
+      r"$type": "number",
+      "@unit": "%"
+    },
+    "Memory_Usage": {
+      r"$name": "Memory Usage",
+      r"$type": "number",
+      "@unit": "%"
+    },
+    "Total_Memory": {
+      r"$name": "Total Memory",
+      r"$type": "number",
+      "@unit": "mb"
+    },
+    "Free_Memory": {
+      r"$name": "Free Memory",
+      r"$type": "number",
+      "@unit": "mb"
+    },
+    "Used_Memory": {
+      r"$name": "Used Memory",
+      r"$type": "number",
+      "@unit": "mb"
+    },
+    "Disk_Usage": {
+      r"$name": "Disk Usage",
+      r"$type": "number",
+      "@unit": "%"
+    },
+    "Total_Disk_Space": {
+      r"$name": "Total Disk Space",
+      r"$type": "number",
+      "@unit": "mb"
+    },
+    "Used_Disk_Space": {
+      r"$name": "Used Disk Space",
+      r"$type": "number",
+      "@unit": "mb"
+    },
+    "Free_Disk_Space": {
+      r"$name": "Free Disk Space",
+      r"$type": "number",
+      "@unit": "mb"
+    }
+  };
+
   link = new LinkProvider(
       args,
       "System-",
@@ -187,7 +203,10 @@ const Map<String, int> POLL_RATE = const {
   "250 milliseconds": 250,
   "500 milliseconds": 500,
   "1 second": 1000,
-  "2 seconds": 2000
+  "2 seconds": 2000,
+  "3 seconds": 3000,
+  "4 seconds": 4000,
+  "5 seconds": 5000
 };
 
 File procStatFile = new File("/proc/stat");
