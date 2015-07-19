@@ -311,7 +311,7 @@ Future<int> getMemSizeBytes() async {
     var parts = line.split(" ");
     var bytes = num.parse(parts[1]);
 
-    return convertBytesToMegabytes(bytes);
+    _memSizeBytes = bytes;
   } else {
     return null;
   }
