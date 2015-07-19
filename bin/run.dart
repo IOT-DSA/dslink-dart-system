@@ -31,7 +31,10 @@ main(List<String> args) async {
         "250 milliseconds",
         "500 milliseconds",
         "1 second",
-        "2 seconds"
+        "2 seconds",
+        "3 seconds",
+        "4 seconds",
+        "5 seconds"
       ]),
       r"$writable": "write",
       "?value": "1 second"
