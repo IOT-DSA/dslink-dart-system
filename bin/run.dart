@@ -264,7 +264,7 @@ Future<num> getFreeMemory() async {
     List<String> lines = result.stdout.split("\n");
     var line = lines[1].replaceAll("  ", " ").replaceAll("  ", " ");
     var parts = line.split(" ");
-    var bytes = num.parse(parts[2]);
+    var bytes = num.parse(parts[6]);
 
     return convertBytesToMegabytes(bytes);
   } else if (Platform.isMacOS) {
