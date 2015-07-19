@@ -226,6 +226,9 @@ Future<double> getCpuUsage() async {
     }
 
     var parts = line.split(" ");
+
+    parts.removeWhere((x) => x.isEmpty);
+
     var a = num.parse(parts[1]);
     var b = num.parse(parts[3]);
     var c = num.parse(parts[4]);
