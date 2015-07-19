@@ -1,0 +1,6 @@
+name: dslink_system
+description: System DSLink
+dependencies:
+  dslink:
+    git: https://github.com/IOT-DSA/sdk-dslink-dart.git
+
