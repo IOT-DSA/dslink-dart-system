@@ -262,8 +262,11 @@ Future<num> getFreeMemory() async {
   if (Platform.isLinux) {
     var result = await Process.run("free", const ["-b"]);
     List<String> lines = result.stdout.split("\n");
-    var line = lines[1].replaceAll("  ", " ").replaceAll("  ", " ");
+    var line = lines[1];
     var parts = line.split(" ");
+
+    parts.removeWhere((x) => x.trim().isEmpty);
+
     var bytes = num.parse(parts[6]);
 
     return convertBytesToMegabytes(bytes);
@@ -307,8 +310,9 @@ Future<int> getMemSizeBytes() async {
   } else if (Platform.isLinux) {
     var result = await Process.run("free", const ["-b"]);
     List<String> lines = result.stdout.split("\n");
-    var line = lines[1].replaceAll("  ", " ").replaceAll("  ", " ");
+    var line = lines[1];
     var parts = line.split(" ");
+    parts.removeWhere((x) => x.trim().isEmpty);
     var bytes = num.parse(parts[1]);
 
     _memSizeBytes = bytes;
