@@ -267,7 +267,7 @@ Future<num> getFreeMemory() async {
 
     parts.removeWhere((x) => x.trim().isEmpty);
 
-    var bytes = num.parse(parts[6]);
+    var bytes = num.parse(parts[result.stdout.contains("available") ? 6 : 3]);
 
     return convertBytesToMegabytes(bytes);
   } else if (Platform.isMacOS) {
