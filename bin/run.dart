@@ -26,18 +26,11 @@ main(List<String> args) async {
     },
     "Poll_Rate": {
       r"$name": "Poll Rate",
-      r"$type": buildEnumType([
-        "100 milliseconds",
-        "250 milliseconds",
-        "500 milliseconds",
-        "1 second",
-        "2 seconds",
-        "3 seconds",
-        "4 seconds",
-        "5 seconds"
-      ]),
+      r"$type": "number",
       r"$writable": "write",
-      "?value": "1 second"
+      "?value": 1,
+      "@unit": "seconds",
+      "@precision": 0
     },
     "CPU_Usage": {
       r"$name": "CPU Usage",
@@ -111,23 +104,16 @@ main(List<String> args) async {
   link.onValueChange("/Poll_Rate").listen((ValueUpdate u) async {
     var val = u.value;
 
-    if (!POLL_RATE.containsKey(val)) {
-      new Future(() {
-        link.updateValue("/Poll_Rate", "2 seconds");
-        link.saveAsync();
-      });
-    } else {
-      interval = new Duration(milliseconds: POLL_RATE[val]);
-      update();
-      await link.saveAsync();
-    }
+    interval = new Duration(seconds: val.toInt());
+    update();
+    await link.saveAsync();
   });
 
   link.syncValue("/Poll_Rate");
   link.connect();
 }
 
-Duration interval = new Duration(milliseconds: 1000);
+Duration interval = new Duration(seconds: 1000);
 
 SimpleNode cpuUsageNode = link["/CPU_Usage"];
 SimpleNode freeMemoryNode = link["/Free_Memory"];
@@ -202,9 +188,6 @@ Future<Map<String, num>> getDiskUsage() async {
 Timer timer;
 
 const Map<String, int> POLL_RATE = const {
-  "100 milliseconds": 100,
-  "250 milliseconds": 250,
-  "500 milliseconds": 500,
   "1 second": 1000,
   "2 seconds": 2000,
   "3 seconds": 3000,
@@ -216,24 +199,47 @@ File procStatFile = new File("/proc/stat");
 
 Future<double> getCpuUsage() async {
   if (Platform.isLinux) {
-    var lines = await procStatFile.readAsLines();
-    String line = lines.firstWhere((x) {
-      return x.startsWith("cpu ");
-    }, orElse: () => null);
+    Future<List<int>> fetch() async {
+      var lines = await procStatFile.readAsLines();
+      String line = lines.firstWhere((x) {
+        return x.startsWith("cpu ");
+      }, orElse: () => null);
 
-    if (line == null) {
-      return null;
+      if (line == null) {
+        return null;
+      }
+
+      var parts = line.split(" ");
+
+      parts.removeWhere((x) => x.isEmpty);
+
+      var user = num.parse(parts[1]);
+      var nice = num.parse(parts[2]);
+      var system = num.parse(parts[3]);
+      var idle = num.parse(parts[4]);
+      var iowait = num.parse(parts[5]);
+      var irq = num.parse(parts[6]);
+      var softrig = num.parse(parts[7]);
+      var steal = num.parse(parts[8]);
+      var guest = num.parse(parts[9]);
+      var guest_nice = num.parse(parts[10]);
+
+      var used = user + nice + system + irq + softrig + steal;
+      var idlez = idle + iowait;
+
+      return [used, idlez, used + idlez];
     }
 
-    var parts = line.split(" ");
+    var first = await fetch();
+    await new Future.delayed(new Duration(seconds: 1));
+    var second = await fetch();
 
-    parts.removeWhere((x) => x.isEmpty);
+    var total = second[2];
+    var oldTotal = first[2];
+    var idle = second[1];
+    var oldIdle = first[1];
 
-    var a = num.parse(parts[1]);
-    var b = num.parse(parts[3]);
-    var c = num.parse(parts[4]);
-
-    return ((a + b) * 100) / (a + b + c);
+    return ((total - oldTotal) - (idle - oldIdle)) / (total - oldTotal) * 100;
   } else if (Platform.isMacOS) {
     var result = await Process.run("top", const ["-o", "cpu", "-l", "1", "-stats", "cpu"]);
     List<String> lines = result.stdout.split("\n");
