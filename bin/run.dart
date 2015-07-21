@@ -104,6 +104,10 @@ main(List<String> args) async {
   link.onValueChange("/Poll_Rate").listen((ValueUpdate u) async {
     var val = u.value;
 
+    if (val is String) {
+      val = 1;
+    }
+
     interval = new Duration(seconds: val.toInt());
     update();
     await link.saveAsync();
@@ -231,7 +235,7 @@ Future<double> getCpuUsage() async {
     }
 
     var first = await fetch();
-    await new Future.delayed(new Duration(seconds: 1));
+    await new Future.delayed(new Duration(milliseconds: 500));
     var second = await fetch();
 
     var total = second[2];
