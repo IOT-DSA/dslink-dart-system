@@ -265,7 +265,7 @@ Future<double> getCpuUsage() async {
     return a + b;
   }
 
-  return null;
+  return 0.0;
 }
 
 Future<num> getFreeMemory() async {
@@ -302,7 +302,7 @@ Future<num> getFreeMemory() async {
     return ((free + spec) * pageSize) / 1024 / 1024;
   }
 
-  return null;
+  return 0;
 }
 
 double totalMemoryMegabytes;
@@ -327,7 +327,7 @@ Future<int> getMemSizeBytes() async {
 
     _memSizeBytes = bytes;
   } else {
-    return null;
+    return 0;
   }
 
   totalMemoryMegabytes = _memSizeBytes / 1024 / 1024;
