@@ -132,7 +132,7 @@ main(List<String> args) async {
     profiles: {
       "executeCommand": addAction((Map<String, dynamic> params) async {
         var cmd = params["command"];
-        var result = await exec(Platform.isWindows ? "cmd" : "bash", args: [
+        var result = await exec(Platform.isWindows ? "cmd.exe" : "bash", args: [
           Platform.isWindows ? "/C" : "-c",
           cmd
         ], writeToBuffer: true);
