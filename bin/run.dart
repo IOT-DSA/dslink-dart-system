@@ -9,6 +9,7 @@ import "package:dslink_system/utils.dart";
 LinkProvider link;
 
 typedef Action(Map<String, dynamic> params);
+
 typedef ActionWithPath(Path path, Map<String, dynamic> params);
 
 addAction(handler) {
@@ -123,22 +124,22 @@ main(List<String> args) async {
   };
 
   link = new LinkProvider(
-      args,
-      "System-",
-      defaultNodes: NODES,
-      encodePrettyJson: true,
-      autoInitialize: false,
-      profiles: {
-        "executeCommand": addAction((Map<String, dynamic> params) async {
-          var cmd = params["command"];
-          var result = await exec("bash", args: ["-c", cmd], writeToBuffer: true);
+    args,
+    "System-",
+    defaultNodes: NODES,
+    encodePrettyJson: true,
+    autoInitialize: false,
+    profiles: {
+      "executeCommand": addAction((Map<String, dynamic> params) async {
+        var cmd = params["command"];
+        var result = await exec("bash", args: ["-c", cmd], writeToBuffer: true);
 
-          return {
-            "output": result.output,
-            "exitCode": result.exitCode
-          };
-        })
-      }
+        return {
+          "output": result.output,
+          "exitCode": result.exitCode
+        };
+      })
+    }
   );
 
   link.init();
@@ -339,6 +340,7 @@ Future<num> getFreeMemory() async {
     List<String> lines = result.stdout.split("\n");
     var firstLine = lines.first;
     var pageSize = int.parse(firstLine.substring(45, firstLine.lastIndexOf(" bytes)")).trim());
+
     int get(String n) {
       var m = lines.firstWhere((x) => x.startsWith(n + ": "), orElse: () => null);
 
@@ -381,7 +383,7 @@ Future<int> getMemSizeBytes() async {
 
     _memSizeBytes = bytes;
   } else {
-    return 0;
+    _memSizeBytes = 0;
   }
 
   totalMemoryMegabytes = _memSizeBytes / 1024 / 1024;
