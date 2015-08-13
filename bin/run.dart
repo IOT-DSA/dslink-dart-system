@@ -2,9 +2,29 @@ import "dart:async";
 import "dart:io";
 
 import "package:dslink/dslink.dart";
-import "package:dslink/io.dart";
+import "package:dslink/nodes.dart";
+
+import "package:dslink_system/utils.dart";
 
 LinkProvider link;
+
+typedef Action(Map<String, dynamic> params);
+typedef ActionWithPath(Path path, Map<String, dynamic> params);
+
+addAction(handler) {
+  return (String path) {
+    var p = new Path(path);
+    return new SimpleActionNode(path, (params) {
+      if (handler is Action) {
+        return handler(params);
+      } else if (handler is ActionWithPath) {
+        return handler(p, params);
+      } else {
+        throw new Exception("Bad Action Handler");
+      }
+    });
+  };
+}
 
 main(List<String> args) async {
   final Map<String, String> PLATFORMS = {
@@ -76,6 +96,29 @@ main(List<String> args) async {
       r"$name": "Free Disk Space",
       r"$type": "number",
       "@unit": "mb"
+    },
+    "Execute_Command": {
+      r"$invokable": "write",
+      r"$is": "executeCommand",
+      r"$name": "Execute Command",
+      r"$params": [
+        {
+          "name": "command",
+          "type": "string"
+        }
+      ],
+      r"$result": "values",
+      r"$columns": [
+        {
+          "name": "output",
+          "type": "string",
+          "editor": "textarea"
+        },
+        {
+          "name": "exitCode",
+          "type": "int"
+        }
+      ]
     }
   };
 
@@ -84,7 +127,18 @@ main(List<String> args) async {
       "System-",
       defaultNodes: NODES,
       encodePrettyJson: true,
-      autoInitialize: false
+      autoInitialize: false,
+      profiles: {
+        "executeCommand": addAction((Map<String, dynamic> params) async {
+          var cmd = params["command"];
+          var result = await exec("bash", args: ["-c", cmd], writeToBuffer: true);
+
+          return {
+            "output": result.output,
+            "exitCode": result.exitCode
+          };
+        })
+      }
   );
 
   link.init();
