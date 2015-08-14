@@ -421,7 +421,11 @@ num convertBytesToMegabytes(num bytes) {
 }
 
 Future<int> getWMICNumber(String query) async {
-  var result = await Process.run("wmic", query.split(" "));
-  var lines = result.stdout.split("\n").skip(1).toList();
-  return int.parse(lines[0]);
+  try {
+    var result = await Process.run("wmic", query.split(" "));
+    var lines = result.stdout.split("\n").where((x) => x.isNotEmpty).skip(1).toList();
+    return int.parse(lines[0]);
+  } catch (e) {
+    return 0;
+  }
 }
