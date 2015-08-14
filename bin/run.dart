@@ -242,6 +242,23 @@ Future<Map<String, num>> getDiskUsage() async {
       "total": total,
       "percentage": (used / total) * 100
     };
+  } else if (Platform.isWindows) {
+    var result = await Process.run("fsutil", ["volume", "diskfree", "C:"]);
+    List<String> lines = result.stdout.split("\n");
+    int getBytesFor(int n) {
+      return int.parse(lines[n].split(":")[1].trim());
+    }
+
+    var used = getBytesFor(0) / 1024 / 1024;
+    var total = getBytesFor(1) / 1024 / 1024;
+    var available = getBytesFor(2) / 1024 / 1024;
+
+    return {
+      "used": used,
+      "available": available,
+      "total": total,
+      "percentage": (used / total) * 100
+    };
   }
 
   return {};
@@ -321,6 +338,8 @@ Future<double> getCpuUsage() async {
     var b = num.parse(r);
 
     return a + b;
+  } else if (Platform.isWindows) {
+    return (await getWMICNumber("CPU get LoadPercentage")).toDouble();
   }
 
   return 0.0;
@@ -359,6 +378,8 @@ Future<num> getFreeMemory() async {
     var spec = get("Pages speculative");
 
     return ((free + spec) * pageSize) / 1024 / 1024;
+  } else if (Platform.isWindows) {
+    return await getWMICNumber("OS get FreePhysicalMemory") / 1024;
   }
 
   return 0;
@@ -386,7 +407,8 @@ Future<int> getMemSizeBytes() async {
 
     _memSizeBytes = bytes;
   } else {
-    _memSizeBytes = 0;
+    _memSizeBytes = await getWMICNumber("ComputerSystem get TotalPhysicalMemory");
+    _memSizeBytes = _memSizeBytes;
   }
 
   totalMemoryMegabytes = _memSizeBytes / 1024 / 1024;
@@ -396,4 +418,10 @@ Future<int> getMemSizeBytes() async {
 
 num convertBytesToMegabytes(num bytes) {
   return (bytes / 1024) / 1024;
+}
+
+Future<int> getWMICNumber(String query) async {
+  var result = await Process.run("wmic", query.split(" "));
+  var lines = result.stdout.split("\n").skip(1).toList();
+  return int.parse(lines[0]);
 }
