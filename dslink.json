@@ -12,6 +12,10 @@
   "configs": {
     "broker": {
       "type": "url"
+    },
+    "name": {
+      "type": "string",
+      "default": "System"
     }
   }
 }
