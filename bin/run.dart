@@ -300,9 +300,6 @@ Future<double> getCpuUsage() async {
       var irq = num.parse(parts[6]);
       var softrig = num.parse(parts[7]);
       var steal = num.parse(parts[8]);
-      var guest = num.parse(parts[9]);
-      var guest_nice = num.parse(parts[10]);
-
       var used = user + nice + system + irq + softrig + steal;
       var idlez = idle + iowait;
 
@@ -347,16 +344,20 @@ Future<double> getCpuUsage() async {
 
 Future<num> getFreeMemory() async {
   if (Platform.isLinux) {
-    var result = await Process.run("free", const ["-b"]);
-    List<String> lines = result.stdout.split("\n");
-    var line = lines[1];
-    var parts = line.split(" ");
+    try {
+      var result = await Process.run("free", const ["-b"]);
+      List<String> lines = result.stdout.split("\n");
+      var line = lines[1];
+      var parts = line.split(" ");
 
-    parts.removeWhere((x) => x.trim().isEmpty);
+      parts.removeWhere((x) => x.trim().isEmpty);
 
-    var bytes = num.parse(parts[result.stdout.contains("available") ? 6 : 3]);
+      var bytes = num.parse(parts[result.stdout.contains("available") ? 6 : 3]);
 
-    return convertBytesToMegabytes(bytes);
+      return convertBytesToMegabytes(bytes);
+    } catch (e) {
+      return 0;
+    }
   } else if (Platform.isMacOS) {
     var result = await Process.run("vm_stat", []);
     List<String> lines = result.stdout.split("\n");
