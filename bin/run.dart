@@ -443,6 +443,14 @@ Future<bool> doesSupportCPUTemperature() async {
     }
   }
 
+  if (Platform.isLinux) {
+    var path = await findExecutable("sensors");
+    if (path != null) {
+      var temp = await getCpuTemp();
+      return _supportsCpuTemperature = temp != 0.0;
+    }
+  }
+
   return _supportsCpuTemperature = false;
 }
 
@@ -461,6 +469,26 @@ Future<num> getCpuTemp() async {
       return 0.0;
     }
   }
+
+  if (Platform.isLinux) {
+    try {
+      var result = await Process.run("sensors", const ["coretemp-isa-0000"]);
+      if (result.exitCode != 0) {
+        return 0.0;
+      }
+      List<String> lines = result.stdout.split("\n");
+      String line = lines.firstWhere((x) => x.startsWith("Physical id 0:"), orElse: () => null);
+      if (line == null) {
+        return 0.0;
+      }
+      String x = line.substring("Physical id 0:".length).trim();
+
+      return num.parse(x.split("°")[0]);
+    } catch (e) {
+      return 0.0;
+    }
+  }
+
   return 0.0;
 }
 
