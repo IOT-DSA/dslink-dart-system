@@ -123,6 +123,14 @@ main(List<String> args) async {
     }
   };
 
+  if (await doesSupportCPUTemperature()) {
+    NODES["CPU_Temperature"] = {
+      r"$name": "CPU Temperature",
+      "@unit": "°C",
+      r"$type": "number"
+    };
+  }
+
   link = new LinkProvider(
     args,
     "System-",
@@ -186,6 +194,7 @@ SimpleNode diskUsageNode = link["/Disk_Usage"];
 SimpleNode totalDiskSpaceNode = link["/Total_Disk_Space"];
 SimpleNode availableDiskSpaceNode = link["/Free_Disk_Space"];
 SimpleNode usedDiskSpaceNode = link["/Used_Disk_Space"];
+SimpleNode cpuTemperatureNode = link["/CPU_Temperature"];
 
 update([bool shouldScheduleUpdate = true]) async {
   if (shouldScheduleUpdate && timer != null) {
@@ -214,6 +223,11 @@ update([bool shouldScheduleUpdate = true]) async {
     totalDiskSpaceNode.updateValue(usage["total"]);
     usedDiskSpaceNode.updateValue(usage["used"]);
     availableDiskSpaceNode.updateValue(usage["available"]);
+  }
+
+  if (cpuTemperatureNode != null && cpuTemperatureNode.hasSubscriber) {
+    var temp = await getCpuTemp();
+    cpuTemperatureNode.updateValue(temp);
   }
 
   if (shouldScheduleUpdate) {
@@ -415,6 +429,39 @@ Future<int> getMemSizeBytes() async {
   totalMemoryMegabytes = _memSizeBytes / 1024 / 1024;
 
   return _memSizeBytes;
+}
+
+Future<bool> doesSupportCPUTemperature() async {
+  if (_supportsCpuTemperature != null) {
+    return _supportsCpuTemperature;
+  }
+
+  if (Platform.isMacOS) {
+    var path = await findExecutable("istats");
+    if (path != null) {
+      return _supportsCpuTemperature = true;
+    }
+  }
+
+  return _supportsCpuTemperature = false;
+}
+
+bool _supportsCpuTemperature;
+
+Future<num> getCpuTemp() async {
+  if (Platform.isMacOS) {
+    try {
+      var result = await Process.run("istats", const ["cpu", "temp"]);
+      if (result.exitCode != 0) {
+        return 0.0;
+      }
+      List<String> lines = result.stdout.split("\n");
+      return num.parse(lines.first.split(" ")[2].split("°")[0]);
+    } catch (e) {
+      return 0.0;
+    }
+  }
+  return 0.0;
 }
 
 num convertBytesToMegabytes(num bytes) {
