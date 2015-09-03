@@ -201,34 +201,36 @@ update([bool shouldScheduleUpdate = true]) async {
     timer.cancel();
   }
 
-  if (shouldScheduleUpdate || cpuUsageNode.hasSubscriber) {
-    var usage = await getCpuUsage();
-    cpuUsageNode.updateValue(usage);
-  }
+  try {
+    if (shouldScheduleUpdate || cpuUsageNode.hasSubscriber) {
+      var usage = await getCpuUsage();
+      cpuUsageNode.updateValue(usage);
+    }
 
-  totalMemoryNode.updateValue(totalMemoryMegabytes);
+    totalMemoryNode.updateValue(totalMemoryMegabytes);
 
-  if (shouldScheduleUpdate || freeMemoryNode.hasSubscriber || memoryUsageNode.hasSubscriber || usedMemoryNode.hasSubscriber) {
-    var free = await getFreeMemory();
-    var used = totalMemoryMegabytes - free;
-    var percentage = (used / totalMemoryMegabytes) * 100;
-    freeMemoryNode.updateValue(free);
-    usedMemoryNode.updateValue(used);
-    memoryUsageNode.updateValue(percentage);
-  }
+    if (shouldScheduleUpdate || freeMemoryNode.hasSubscriber || memoryUsageNode.hasSubscriber || usedMemoryNode.hasSubscriber) {
+      var free = await getFreeMemory();
+      var used = totalMemoryMegabytes - free;
+      var percentage = (used / totalMemoryMegabytes) * 100;
+      freeMemoryNode.updateValue(free);
+      usedMemoryNode.updateValue(used);
+      memoryUsageNode.updateValue(percentage);
+    }
 
-  if (shouldScheduleUpdate || diskUsageNode.hasSubscriber || totalDiskSpaceNode.hasSubscriber || availableDiskSpaceNode.hasSubscriber || usedDiskSpaceNode.hasSubscriber) {
-    var usage = await getDiskUsage();
-    diskUsageNode.updateValue(usage["percentage"]);
-    totalDiskSpaceNode.updateValue(usage["total"]);
-    usedDiskSpaceNode.updateValue(usage["used"]);
-    availableDiskSpaceNode.updateValue(usage["available"]);
-  }
+    if (shouldScheduleUpdate || diskUsageNode.hasSubscriber || totalDiskSpaceNode.hasSubscriber || availableDiskSpaceNode.hasSubscriber || usedDiskSpaceNode.hasSubscriber) {
+      var usage = await getDiskUsage();
+      diskUsageNode.updateValue(usage["percentage"]);
+      totalDiskSpaceNode.updateValue(usage["total"]);
+      usedDiskSpaceNode.updateValue(usage["used"]);
+      availableDiskSpaceNode.updateValue(usage["available"]);
+    }
 
-  if (cpuTemperatureNode != null && cpuTemperatureNode.hasSubscriber) {
-    var temp = await getCpuTemp();
-    cpuTemperatureNode.updateValue(temp);
-  }
+    if (cpuTemperatureNode != null && cpuTemperatureNode.hasSubscriber) {
+      var temp = await getCpuTemp();
+      cpuTemperatureNode.updateValue(temp);
+    }
+  } catch (e) {}
 
   if (shouldScheduleUpdate) {
     timer = new Timer(interval, update);
