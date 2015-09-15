@@ -183,7 +183,7 @@ main(List<String> args) async {
   link.connect();
 }
 
-Duration interval = new Duration(seconds: 1000);
+Duration interval = new Duration(seconds: 2);
 
 SimpleNode cpuUsageNode = link["/CPU_Usage"];
 SimpleNode freeMemoryNode = link["/Free_Memory"];
