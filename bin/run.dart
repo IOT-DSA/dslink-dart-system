@@ -3,6 +3,7 @@ import "dart:io";
 
 import "package:dslink/dslink.dart";
 import "package:dslink/nodes.dart";
+import "package:dslink/utils.dart";
 
 import "package:dslink_system/utils.dart";
 
@@ -131,6 +132,21 @@ main(List<String> args) async {
     };
   }
 
+  if (!Platform.isWindows) {
+    NODES["Processes"] = {
+      r"$name": "Processes",
+      r"$type": "int"
+    };
+  }
+
+  if (await hasBattery()) {
+    NODES["Battery_Level"] = {
+      r"$name": "Battery Level",
+      r"$type": "number",
+      "@unit": "%"
+    };
+  }
+
   link = new LinkProvider(
     args,
     "System-",
@@ -143,7 +159,9 @@ main(List<String> args) async {
         var result = await exec(Platform.isWindows ? "cmd.exe" : "bash", args: [
           Platform.isWindows ? "/C" : "-c",
           cmd
-        ], writeToBuffer: true);
+        ], writeToBuffer: true, outputHandler: (out) {
+          logger.finest(out);
+        });
 
         return {
           "output": result.output,
@@ -195,6 +213,8 @@ SimpleNode totalDiskSpaceNode = link["/Total_Disk_Space"];
 SimpleNode availableDiskSpaceNode = link["/Free_Disk_Space"];
 SimpleNode usedDiskSpaceNode = link["/Used_Disk_Space"];
 SimpleNode cpuTemperatureNode = link["/CPU_Temperature"];
+SimpleNode processCountNode = link["/Processes"];
+SimpleNode batteryLevelNode = link["/Battery_Level"];
 
 update([bool shouldScheduleUpdate = true]) async {
   if (shouldScheduleUpdate && timer != null) {
@@ -229,6 +249,16 @@ update([bool shouldScheduleUpdate = true]) async {
     if (cpuTemperatureNode != null && cpuTemperatureNode.hasSubscriber) {
       var temp = await getCpuTemp();
       cpuTemperatureNode.updateValue(temp);
+    }
+
+    if (processCountNode != null && processCountNode.hasSubscriber) {
+      var count = await getProcessCount();
+      processCountNode.updateValue(count);
+    }
+
+    if (batteryLevelNode != null && batteryLevelNode.hasSubscriber) {
+      var level = await getBatteryPercentage();
+      batteryLevelNode.updateValue(level);
     }
   } catch (e) {}
 
@@ -323,7 +353,7 @@ Future<double> getCpuUsage() async {
     }
 
     var first = await fetch();
-    await new Future.delayed(new Duration(milliseconds: 500));
+    await new Future.delayed(const Duration(milliseconds: 500));
     var second = await fetch();
 
     var total = second[2];
@@ -405,6 +435,61 @@ Future<num> getFreeMemory() async {
 double totalMemoryMegabytes;
 
 int _memSizeBytes;
+
+Future<int> getProcessCount() async {
+  try {
+    var result = await Process.run("ps", Platform.isMacOS ?
+      const ["-A", "-o", "pid"] :
+      const ["-A", "--no-headers"]);
+
+    if (result.exitCode != 0) {
+      throw "Error";
+    }
+
+    return result.stdout.split("\n").length;
+  } catch (e) {
+    return 0;
+  }
+}
+
+Future<bool> hasBattery() async {
+  try {
+    if (Platform.isMacOS) {
+      var result = await Process.run("pmset", ["-g", "batt"]);
+      if (result.exitCode != 0) {
+        return false;
+      }
+
+      if (!result.stdout.contains("Battery")) {
+        return false;
+      }
+
+      return true;
+    } else {
+      return false;
+    }
+  } catch (e) {
+    return false;
+  }
+}
+
+RegExp PERCENTAGE_REGEX = new RegExp(r"([0-9\.]+)%\;");
+
+Future<num> getBatteryPercentage() async {
+  try {
+    if (Platform.isMacOS) {
+      var result = await Process.run("pmset", const ["-g", "batt"]);
+      if (result.exitCode != 0) {
+        throw "Fail";
+      }
+
+      return num.parse(PERCENTAGE_REGEX.firstMatch(result.stdout).group(1));
+    } else {
+      return 0;
+    }
+  } catch (e) {
+  }
+}
 
 Future<int> getMemSizeBytes() async {
   if (_memSizeBytes != null) {
