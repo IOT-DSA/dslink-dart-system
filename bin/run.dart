@@ -465,7 +465,10 @@ Future<bool> hasBattery() async {
       }
 
       return true;
-    } else {
+    } else if (Platform.isWindows) {
+      var result = await getWMICNumber("PATH Win32_Battery Get Availability");
+      return result == 3;
+    }else {
       return false;
     }
   } catch (e) {
@@ -484,6 +487,8 @@ Future<num> getBatteryPercentage() async {
       }
 
       return num.parse(PERCENTAGE_REGEX.firstMatch(result.stdout).group(1));
+    } else if (Platform.isWindows) {
+      return await getWMICNumber("path Win32_Battery Get EstimatedChargeRemaining");
     } else {
       return 0;
     }
