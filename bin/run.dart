@@ -295,9 +295,9 @@ Future<Map<String, num>> getDiskUsage() async {
       return int.parse(lines[n].split(":")[1].trim());
     }
 
-    var used = getBytesFor(0) / 1024 / 1024;
     var total = getBytesFor(1) / 1024 / 1024;
     var available = getBytesFor(2) / 1024 / 1024;
+    var used = total - available;
 
     return {
       "used": used,
