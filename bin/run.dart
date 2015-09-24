@@ -493,6 +493,7 @@ Future<num> getBatteryPercentage() async {
       return 0;
     }
   } catch (e) {
+    return 0;
   }
 }
 
