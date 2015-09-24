@@ -46,6 +46,11 @@ main(List<String> args) async {
       r"$type": "number",
       "?value": Platform.numberOfProcessors
     },
+    "Processes": {
+      r"$name": "Processes",
+      r"$type": "int",
+      "?value": 0
+    },
     "Poll_Rate": {
       r"$name": "Poll Rate",
       r"$type": "number",
@@ -129,13 +134,6 @@ main(List<String> args) async {
       r"$name": "CPU Temperature",
       "@unit": "°C",
       r"$type": "number"
-    };
-  }
-
-  if (!Platform.isWindows) {
-    NODES["Processes"] = {
-      r"$name": "Processes",
-      r"$type": "int"
     };
   }
 
@@ -438,15 +436,23 @@ int _memSizeBytes;
 
 Future<int> getProcessCount() async {
   try {
-    var result = await Process.run("ps", Platform.isMacOS ?
+    if (Platform.isWindows) {
+      var result = await Process.run("wmic", "PROCESS LIST BRIEF".split(" "));
+      var lines = result.stdout.split("\n").where((String x) => x.isNotEmpty).skip(1).toList();
+      return lines.length;
+    } else {
+      var result = await Process.run("ps", Platform.isMacOS ?
       const ["-A", "-o", "pid"] :
       const ["-A", "--no-headers"]);
 
-    if (result.exitCode != 0) {
-      throw "Error";
-    }
+      if (result.exitCode != 0) {
+        throw "Error";
+      }
 
-    return result.stdout.split("\n").length;
+      return result.stdout
+          .split("\n")
+          .length;
+    }
   } catch (e) {
     return 0;
   }
@@ -544,6 +550,11 @@ Future<bool> doesSupportCPUTemperature() async {
     }
   }
 
+  if (Platform.isWindows) {
+    var result = await getWMICNumber("path Win32_TemperatureProbe Get Availability");
+    return _supportsCpuTemperature = (result == 3);
+  }
+
   return _supportsCpuTemperature = false;
 }
 
@@ -580,6 +591,10 @@ Future<num> getCpuTemp() async {
     } catch (e) {
       return 0.0;
     }
+  }
+
+  if (Platform.isWindows) {
+    return await getWMICNumber("path Win32_TemperatureProbe Get CurrentReading");
   }
 
   return 0.0;
