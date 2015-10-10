@@ -1,4 +1,5 @@
 import "dart:async";
+import "dart:convert";
 import "dart:io";
 
 import "package:dslink/dslink.dart";
@@ -143,6 +144,28 @@ main(List<String> args) async {
           "type": "int"
         }
       ]
+    },
+    "Execute_Command_Stream": {
+      r"$invokable": "write",
+      r"$is": "executeCommandStream",
+      r"$name": "Execute Command Stream",
+      r"$result": "stream",
+      r"$params": [
+        {
+          "name": "command",
+          "type": "string"
+        }
+      ],
+      r"$columns": [
+        {
+          "name": "type",
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "type": "dynamic"
+        }
+      ]
     }
   };
 
@@ -182,6 +205,51 @@ main(List<String> args) async {
           "output": result.output,
           "exitCode": result.exitCode
         };
+      }),
+      "executeCommandStream": addAction((Map<String, dynamic> params) async {
+        var cmd = params["command"];
+        Process process;
+        var controller = new StreamController(onCancel: () {
+          if (process != null) {
+            process.kill();
+          }
+        });
+
+        Process.start(Platform.isWindows ? "cmd.exe" : "bash", [
+          Platform.isWindows ? "/C" : "-c",
+          cmd
+        ]).then((Process proc) {
+          process = proc;
+          proc.stdout.transform(const Utf8Decoder()).transform(const LineSplitter()).listen((line) {
+            if (!controller.isClosed) {
+              controller.add({
+                "type": "stdout",
+                "value": line
+              });
+            }
+          });
+
+          proc.stderr.transform(const Utf8Decoder()).transform(const LineSplitter()).listen((line) {
+            if (!controller.isClosed) {
+              controller.add({
+                "type": "stderr",
+                "value": line
+              });
+            }
+          });
+
+          proc.exitCode.then((code) {
+            if (!controller.isClosed) {
+              controller.add({
+                "type": "exit",
+                "value": code
+              });
+            }
+            controller.close();
+          });
+        });
+
+        return controller.stream;
       })
     }
   );
