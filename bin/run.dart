@@ -11,7 +11,6 @@ import "package:dslink_system/utils.dart";
 LinkProvider link;
 
 typedef Action(Map<String, dynamic> params);
-
 typedef ActionWithPath(Path path, Map<String, dynamic> params);
 
 addAction(handler) {
@@ -61,7 +60,7 @@ main(List<String> args) async {
       r"$name": "Poll Rate",
       r"$type": "number",
       r"$writable": "write",
-      "?value": 1,
+      "?value": Platform.numberOfProcessors == 1 ? 3 : 1,
       "@unit": "seconds",
       "@precision": 0
     },
@@ -266,6 +265,7 @@ main(List<String> args) async {
   }
 
   await getMemSizeBytes();
+  totalMemoryNode.updateValue(totalMemoryMegabytes);
   await update(false);
 
   link.onValueChange("/Poll_Rate").listen((ValueUpdate u) async {
@@ -280,7 +280,7 @@ main(List<String> args) async {
     await link.saveAsync();
   });
 
-  Scheduler.every(Interval.TWO_HUNDRED_MILLISECONDS, () {
+  Scheduler.every(Interval.HALF_SECOND, () {
     if (systemTimeNode.hasSubscriber) {
       systemTimeNode.updateValue(new DateTime.now().toString());
     }
@@ -316,8 +316,6 @@ update([bool shouldScheduleUpdate = true]) async {
       var usage = await getCpuUsage();
       cpuUsageNode.updateValue(usage);
     }
-
-    totalMemoryNode.updateValue(totalMemoryMegabytes);
 
     if (shouldScheduleUpdate || freeMemoryNode.hasSubscriber || memoryUsageNode.hasSubscriber || usedMemoryNode.hasSubscriber) {
       var free = await getFreeMemory();

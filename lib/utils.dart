@@ -568,25 +568,29 @@ Future<int> getWMICNumber(String query) async {
 
 Future<Map<String, num>> getDiskUsage() async {
   if (Platform.isLinux || Platform.isMacOS) {
-    var result = await Process.run("df", const ["/"]);
-    List<String> lines = result.stdout.split("\n");
-    lines.removeWhere((x) => x.trim().isEmpty);
-    String line = lines.last;
+    try {
+      var result = await Process.run("df", const ["/"]);
+      List<String> lines = result.stdout.split("\n");
+      lines.removeWhere((x) => x.trim().isEmpty);
+      String line = lines.last;
 
-    var parts = line.split(" ");
+      var parts = line.split(" ");
 
-    parts.removeWhere((x) => x.isEmpty);
+      parts.removeWhere((x) => x.isEmpty);
 
-    var used = int.parse(parts[2]) / 1024;
-    var available = int.parse(parts[3]) / 1024;
-    var total = int.parse(parts[1]) / 1024;
+      var used = int.parse(parts[2]) / 1024;
+      var available = int.parse(parts[3]) / 1024;
+      var total = int.parse(parts[1]) / 1024;
 
-    return {
-      "used": used,
-      "available": available,
-      "total": total,
-      "percentage": (used / total) * 100
-    };
+      return {
+        "used": used,
+        "available": available,
+        "total": total,
+        "percentage": (used / total) * 100
+      };
+    } catch (e) {
+      return {};
+    }
   } else if (Platform.isWindows) {
     var result = await Process.run("fsutil", ["volume", "diskfree", "C:"]);
     List<String> lines = result.stdout.split("\n");
