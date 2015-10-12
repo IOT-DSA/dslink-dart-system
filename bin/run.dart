@@ -307,17 +307,17 @@ SimpleNode batteryLevelNode = link["/Battery_Level"];
 SimpleNode systemTimeNode = link["/System_Time"];
 
 update([bool shouldScheduleUpdate = true]) async {
-  if (shouldScheduleUpdate && timer != null) {
+  if (!shouldScheduleUpdate && timer != null) {
     timer.cancel();
   }
 
   try {
-    if (shouldScheduleUpdate || cpuUsageNode.hasSubscriber) {
+    if (!shouldScheduleUpdate || cpuUsageNode.hasSubscriber) {
       var usage = await getCpuUsage();
       cpuUsageNode.updateValue(usage);
     }
 
-    if (shouldScheduleUpdate || freeMemoryNode.hasSubscriber || memoryUsageNode.hasSubscriber || usedMemoryNode.hasSubscriber) {
+    if (!shouldScheduleUpdate || freeMemoryNode.hasSubscriber || memoryUsageNode.hasSubscriber || usedMemoryNode.hasSubscriber) {
       var free = await getFreeMemory();
       var used = totalMemoryMegabytes - free;
       var percentage = (used / totalMemoryMegabytes) * 100;
@@ -326,7 +326,7 @@ update([bool shouldScheduleUpdate = true]) async {
       memoryUsageNode.updateValue(percentage);
     }
 
-    if (shouldScheduleUpdate || diskUsageNode.hasSubscriber || totalDiskSpaceNode.hasSubscriber || availableDiskSpaceNode.hasSubscriber || usedDiskSpaceNode.hasSubscriber) {
+    if (!shouldScheduleUpdate || diskUsageNode.hasSubscriber || totalDiskSpaceNode.hasSubscriber || availableDiskSpaceNode.hasSubscriber || usedDiskSpaceNode.hasSubscriber) {
       var usage = await getDiskUsage();
       diskUsageNode.updateValue(usage["percentage"]);
       totalDiskSpaceNode.updateValue(usage["total"]);
