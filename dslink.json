@@ -16,6 +16,9 @@
     "name": {
       "type": "string",
       "default": "System"
+    },
+    "token": {
+      "type": "string"
     }
   }
 }
