@@ -298,12 +298,13 @@ Future<num> getFreeMemory() async {
     try {
       var result = await Process.run("free", const ["-b"]);
       List<String> lines = result.stdout.split("\n");
-      var line = lines[1];
+      var lid = result.stdout.contains("available") || !result.stdout.contains("-/+ buffers/cache") ? 1 : 2;
+      var line = lines[lid];
       var parts = line.split(" ");
 
       parts.removeWhere((x) => x.trim().isEmpty);
 
-      var bytes = num.parse(parts[result.stdout.contains("available") ? 6 : 3]);
+      var bytes = num.parse(parts[(lid == 1) ? 6 : 3]);
 
       return convertBytesToMegabytes(bytes);
     } catch (e) {
