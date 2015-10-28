@@ -3,6 +3,7 @@ library dslink.system.utils;
 import "dart:async";
 import "dart:convert";
 import "dart:io";
+import "dart:math";
 
 import "package:path/path.dart" as pathlib;
 
@@ -227,46 +228,83 @@ Future<Map<String, String>> parseVariableFile(String path) async {
 
 File procStatFile = new File("/proc/stat");
 
+bool useOldLinuxCpuUsageCalculator = false;
+
+int _prevTotal = 0;
+int _prevIdle = 0;
+int _prevLoad = 0;
+
+onErrorNull(input) => null;
+
 Future<double> getCpuUsage() async {
   if (Platform.isLinux) {
-    Future<List<int>> fetch() async {
-      var lines = await procStatFile.readAsLines();
-      String line = lines.firstWhere((x) {
-        return x.startsWith("cpu ");
-      }, orElse: () => null);
+    if (useOldLinuxCpuUsageCalculator) {
+      Future<List<int>> fetch() async {
+        var lines = await procStatFile.readAsLines();
+        String line = lines.firstWhere((x) {
+          return x.startsWith("cpu ");
+        }, orElse: () => null);
 
-      if (line == null) {
-        return null;
+        if (line == null) {
+          return null;
+        }
+
+        var parts = line.split(" ");
+
+        parts.removeWhere((x) => x.isEmpty);
+
+        var user = num.parse(parts[1]);
+        var nice = num.parse(parts[2]);
+        var system = num.parse(parts[3]);
+        var idle = num.parse(parts[4]);
+        var iowait = num.parse(parts[5]);
+        var irq = num.parse(parts[6]);
+        var softrig = num.parse(parts[7]);
+        var steal = num.parse(parts[8]);
+        var used = user + nice + system + irq + softrig + steal;
+        var idlez = idle + iowait;
+
+        return [used, idlez, used + idlez];
       }
 
-      var parts = line.split(" ");
+      var first = await fetch();
+      await new Future.delayed(const Duration(milliseconds: 500));
+      var second = await fetch();
 
-      parts.removeWhere((x) => x.isEmpty);
+      var total = second[2];
+      var oldTotal = first[2];
+      var idle = second[1];
+      var oldIdle = first[1];
 
-      var user = num.parse(parts[1]);
-      var nice = num.parse(parts[2]);
-      var system = num.parse(parts[3]);
-      var idle = num.parse(parts[4]);
-      var iowait = num.parse(parts[5]);
-      var irq = num.parse(parts[6]);
-      var softrig = num.parse(parts[7]);
-      var steal = num.parse(parts[8]);
-      var used = user + nice + system + irq + softrig + steal;
-      var idlez = idle + iowait;
+      return ((total - oldTotal) - (idle - oldIdle)) / (total - oldTotal) * 100;
+    } else {
+      var content = await procStatFile.readAsString();
+      var split = content.split(" ");
+      var d = [];
+      var idx = 0;
+      var count = 0;
+      while (count < 4) {
+        var t = num.parse(split[idx], onErrorNull);
+        if (t != null) {
+          count++;
+          d.add(t);
+        }
+        idx++;
+      }
 
-      return [used, idlez, used + idlez];
+      num idle = d[3];
+      num total = d[0] + d[1] + d[2];
+      num load = 0;
+      if (_prevTotal != 0) {
+        load = ((total - _prevTotal) / ((total + idle - _prevTotal - _prevIdle) * 100));
+      }
+
+      _prevLoad = load;
+      _prevTotal = total;
+      _prevIdle = idle;
+
+      return load;
     }
-
-    var first = await fetch();
-    await new Future.delayed(const Duration(milliseconds: 500));
-    var second = await fetch();
-
-    var total = second[2];
-    var oldTotal = first[2];
-    var idle = second[1];
-    var oldIdle = first[1];
-
-    return ((total - oldTotal) - (idle - oldIdle)) / (total - oldTotal) * 100;
   } else if (Platform.isMacOS) {
     var result = await Process.run("top", const ["-o", "cpu", "-l", "1", "-stats", "cpu"]);
     List<String> lines = result.stdout.split("\n");
