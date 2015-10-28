@@ -295,8 +295,9 @@ Future<double> getCpuUsage() async {
       num idle = d[3];
       num total = d[0] + d[1] + d[2];
       num load = 0;
+
       if (_prevTotal != 0) {
-        load = ((total - _prevTotal) / ((total + idle - _prevTotal - _prevIdle) * 100));
+        load = ((total - _prevTotal) / ((total + idle - _prevTotal - _prevIdle))) * 100;
       }
 
       _prevLoad = load;
