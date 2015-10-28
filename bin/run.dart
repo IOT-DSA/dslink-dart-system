@@ -334,17 +334,17 @@ update([bool shouldScheduleUpdate = true]) async {
       availableDiskSpaceNode.updateValue(usage["available"]);
     }
 
-    if (cpuTemperatureNode != null && cpuTemperatureNode.hasSubscriber) {
+    if (cpuTemperatureNode != null && (!shouldScheduleUpdate || cpuTemperatureNode.hasSubscriber)) {
       var temp = await getCpuTemp();
       cpuTemperatureNode.updateValue(temp);
     }
 
-    if (processCountNode != null && processCountNode.hasSubscriber) {
+    if (processCountNode != null && (!shouldScheduleUpdate || processCountNode.hasSubscriber)) {
       var count = await getProcessCount();
       processCountNode.updateValue(count);
     }
 
-    if (batteryLevelNode != null && batteryLevelNode.hasSubscriber) {
+    if (batteryLevelNode != null && (!shouldScheduleUpdate || batteryLevelNode.hasSubscriber)) {
       var level = await getBatteryPercentage();
       batteryLevelNode.updateValue(level);
     }
