@@ -61,8 +61,7 @@ main(List<String> args) async {
       r"$type": "number",
       r"$writable": "write",
       "?value": Platform.numberOfProcessors == 1 ? 3 : 1,
-      "@unit": "seconds",
-      "@precision": 0
+      "@unit": "seconds"
     },
     "CPU_Usage": {
       r"$name": "CPU Usage",
