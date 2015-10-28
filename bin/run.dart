@@ -272,10 +272,14 @@ main(List<String> args) async {
     var val = u.value;
 
     if (val is String) {
-      val = 1;
+      try {
+        val = num.parse(val);
+      } catch (e) {
+        val = 1;
+      }
     }
 
-    interval = new Duration(seconds: val.toInt());
+    interval = new Duration(milliseconds: (val * 1000).toInt());
     update();
     await link.saveAsync();
   });
