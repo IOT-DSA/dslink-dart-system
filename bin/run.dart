@@ -61,8 +61,7 @@ main(List<String> args) async {
       r"$type": "number",
       r"$writable": "write",
       "?value": Platform.numberOfProcessors == 1 ? 3 : 1,
-      "@unit": "seconds",
-      "@precision": 0
+      "@unit": "seconds"
     },
     "CPU_Usage": {
       r"$name": "CPU Usage",
@@ -272,10 +271,14 @@ main(List<String> args) async {
     var val = u.value;
 
     if (val is String) {
-      val = 1;
+      try {
+        val = num.parse(val);
+      } catch (e) {
+        val = 1;
+      }
     }
 
-    interval = new Duration(seconds: val.toInt());
+    interval = new Duration(milliseconds: (val * 1000).toInt());
     update();
     await link.saveAsync();
   });
