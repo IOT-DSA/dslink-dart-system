@@ -278,7 +278,7 @@ Future<bool> hasBattery() async {
     } else if (Platform.isWindows) {
       var result = await getWMICNumber("PATH Win32_Battery Get Availability");
       return result == 3;
-    }else {
+    } else {
       return false;
     }
   } catch (e) {
