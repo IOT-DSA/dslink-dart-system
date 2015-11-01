@@ -1,138 +1,12 @@
 library dslink.system.utils;
 
 import "dart:async";
-import "dart:convert";
 import "dart:io";
 
 import "package:path/path.dart" as pathlib;
 
-typedef void ProcessHandler(Process process);
-typedef void OutputHandler(String str);
-
-Stdin get _stdin => stdin;
-
-class BetterProcessResult extends ProcessResult {
-  final String output;
-
-  BetterProcessResult(int pid, int exitCode, stdout, stderr, this.output)
-  : super(pid, exitCode, stdout, stderr);
-}
-
-Future<BetterProcessResult> exec(String executable,
-                                 {List<String> args: const [], String workingDirectory,
-                                 Map<String, String> environment, bool includeParentEnvironment: true,
-                                 bool runInShell: false, stdin, ProcessHandler handler,
-                                 OutputHandler stdoutHandler, OutputHandler stderrHandler,
-                                 OutputHandler outputHandler, File outputFile, bool inherit: false,
-                                 bool writeToBuffer: false}) async {
-  IOSink raf;
-
-  if (outputFile != null) {
-    if (!(await outputFile.exists())) {
-      await outputFile.create(recursive: true);
-    }
-
-    raf = await outputFile.openWrite(mode: FileMode.APPEND);
-  }
-
-  try {
-    Process process = await Process.start(executable, args,
-    workingDirectory: workingDirectory,
-    environment: environment,
-    includeParentEnvironment: includeParentEnvironment,
-    runInShell: runInShell);
-
-    if (raf != null) {
-      await raf.writeln(
-        "[${currentTimestamp}] == Executing ${executable} with arguments ${args} (pid: ${process.pid}) ==");
-    }
-
-    var buff = new StringBuffer();
-    var ob = new StringBuffer();
-    var eb = new StringBuffer();
-
-    process.stdout.transform(UTF8.decoder).listen((str) async {
-      if (writeToBuffer) {
-        ob.write(str);
-        buff.write(str);
-      }
-
-      if (stdoutHandler != null) {
-        stdoutHandler(str);
-      }
-
-      if (outputHandler != null) {
-        outputHandler(str);
-      }
-
-      if (inherit) {
-        stdout.write(str);
-      }
-
-      if (raf != null) {
-        await raf.writeln("[${currentTimestamp}] ${str}");
-      }
-    });
-
-    process.stderr.transform(UTF8.decoder).listen((str) async {
-      if (writeToBuffer) {
-        eb.write(str);
-        buff.write(str);
-      }
-
-      if (stderrHandler != null) {
-        stderrHandler(str);
-      }
-
-      if (outputHandler != null) {
-        outputHandler(str);
-      }
-
-      if (inherit) {
-        stderr.write(str);
-      }
-
-      if (raf != null) {
-        await raf.writeln("[${currentTimestamp}] ${str}");
-      }
-    });
-
-    if (handler != null) {
-      handler(process);
-    }
-
-    if (stdin != null) {
-      if (stdin is Stream) {
-        stdin.listen(process.stdin.add, onDone: process.stdin.close);
-      } else if (stdin is List) {
-        process.stdin.add(stdin);
-      } else {
-        process.stdin.write(stdin);
-        await process.stdin.close();
-      }
-    } else if (inherit) {
-      _stdin.listen(process.stdin.add, onDone: process.stdin.close);
-    }
-
-    var code = await process.exitCode;
-    var pid = process.pid;
-
-    if (raf != null) {
-      await raf
-      .writeln("[${currentTimestamp}] == Exited with status ${code} ==");
-      await raf.flush();
-      await raf.close();
-    }
-
-    return new BetterProcessResult(
-      pid, code, ob.toString(), eb.toString(), buff.toString());
-  } finally {
-    if (raf != null) {
-      await raf.flush();
-      await raf.close();
-    }
-  }
-}
+final RegExp PERCENTAGE_REGEX = new RegExp(r"([0-9\.]+)%\;");
+final bool useOldLinuxCpuUsageCalculator = false;
 
 Future<String> findExecutable(String name) async {
   var paths =
@@ -164,32 +38,6 @@ Future<String> findExecutable(String name) async {
   }
 
   return null;
-}
-
-Future<bool> isPortOpen(int port, {String host: "0.0.0.0"}) async {
-  try {
-    ServerSocket server = await ServerSocket.bind(host, port);
-    await server.close();
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-String get currentTimestamp {
-  return new DateTime.now().toString();
-}
-
-String fseType(FileSystemEntity entity) {
-  if (entity is Directory) {
-    return "directory";
-  } else if (entity is File) {
-    return "file";
-  } else if (entity is Link) {
-    return "link";
-  }
-
-  return "unknown";
 }
 
 Future<bool> fileExists(String path) async {
@@ -226,8 +74,6 @@ Future<Map<String, String>> parseVariableFile(String path) async {
 }
 
 File procStatFile = new File("/proc/stat");
-
-bool useOldLinuxCpuUsageCalculator = false;
 
 int _prevTotal = 0;
 int _prevIdle = 0;
@@ -440,8 +286,6 @@ Future<bool> hasBattery() async {
   }
 }
 
-RegExp PERCENTAGE_REGEX = new RegExp(r"([0-9\.]+)%\;");
-
 Future<num> getBatteryPercentage() async {
   try {
     if (Platform.isMacOS) {
@@ -486,6 +330,30 @@ Future<int> getMemSizeBytes() async {
   totalMemoryMegabytes = _memSizeBytes / 1024 / 1024;
 
   return _memSizeBytes;
+}
+
+Future<Map<String, Map<String, dynamic>>> getFanStats() async {
+  try {
+    if (Platform.isMacOS && await findExecutable("istats") != null) {
+      var map = {};
+      var result = await Process.run("istats", const ["fan", "speed"]);
+      String out = result.stdout;
+      List<String> lines = out.split("\n");
+      for (String line in lines) {
+        if (!line.startsWith("Fan ")) {
+          continue;
+        }
+        List<String> parts = line.split(" ");
+        int id = int.parse(parts[1]);
+        num speed = num.parse(parts[3]);
+        map["Fan ${id}"] = {
+          "Speed": speed
+        };
+      }
+      return map;
+    }
+  } catch (e) {}
+  return const {};
 }
 
 Future<bool> doesSupportCPUTemperature() async {
@@ -650,4 +518,64 @@ Future<Map<String, num>> getDiskUsage() async {
   }
 
   return {};
+}
+
+Future<bool> doesSupportModel() async {
+  if (Platform.isMacOS) {
+    return (await findExecutable("system_profiler")) != null;
+  }
+  return false;
+}
+
+Future<String> getHardwareModel() async {
+  try {
+    if (Platform.isMacOS) {
+      return await getMacSystemProfilerProperty("SPHardwareDataType", "Model Name");
+    }
+  } catch (e) {
+  }
+  return "Unknown";
+}
+
+Future<bool> doesSupportHardwareIdentifier() async {
+  if (Platform.isMacOS) {
+    return (await findExecutable("system_profiler")) != null;
+  }
+  return false;
+}
+
+Future<String> getHardwareIdentifier() async {
+  try {
+    if (Platform.isMacOS) {
+      return await getMacSystemProfilerProperty("SPHardwareDataType", "Hardware UUID");
+    }
+  } catch (e) {
+  }
+  return "Unknown";
+}
+
+Map<String, String> _macProfilerCache = {};
+
+Future<String> getMacSystemProfilerProperty(String dataType, String name) async {
+  if (!_macProfilerCache.containsKey(dataType)) {
+    var result = await Process.run("system_profiler", [
+      "-detailLevel",
+      "full",
+      dataType
+    ]);
+
+    _macProfilerCache[dataType] = result.stdout;
+  }
+  String out = _macProfilerCache[dataType];
+  var needle = "${name}: ";
+  var idx = out.indexOf(needle);
+  var start = idx + needle.length;
+  return out.substring(start, out.indexOf("\n", start)).trim();
+}
+
+Future<String> getProcessorName() async {
+  if (Platform.isMacOS) {
+    return await getMacSystemProfilerProperty("SPHardwareDataType", "Processor Name");
+  }
+  return "Unknown";
 }

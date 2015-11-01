@@ -7,6 +7,7 @@ import "package:dslink/nodes.dart";
 import "package:dslink/utils.dart";
 
 import "package:dslink_system/utils.dart";
+import "package:dslink_system/io.dart";
 
 LinkProvider link;
 
@@ -175,11 +176,58 @@ main(List<String> args) async {
     };
   }
 
+  if (await doesSupportHardwareIdentifier()) {
+    NODES["Hardware_Identifier"] = {
+      r"$name": "Hardware Identifier",
+      r"$type": "string",
+      "?value": await getHardwareIdentifier()
+    };
+  }
+
+  if (await doesSupportModel()) {
+    NODES["Model"] = {
+      r"$name": "Model",
+      r"$type": "string",
+      "?value": await getHardwareModel()
+    };
+  }
+
+  if (Platform.isMacOS) {
+    NODES["Processor_Model"] = {
+      r"$name": "Processor Model",
+      r"$type": "string",
+      "?value": await getProcessorName()
+    };
+  }
+
   if (await hasBattery()) {
     NODES["Battery_Level"] = {
       r"$name": "Battery Level",
       r"$type": "number",
       "@unit": "%"
+    };
+  }
+
+  if (Platform.isMacOS) {
+    NODES["Run_AppleScript"] = {
+      r"$is": "runAppleScript",
+      r"$name": "Run AppleScript",
+      r"$invokable": "write",
+      r"$params": [
+        {
+          "name": "script",
+          "type": "string",
+          "editor": "textarea"
+        }
+      ],
+      r"$result": "values",
+      r"$columns": [
+        {
+          "name": "output",
+          "type": "string",
+          "editor": "textarea"
+        }
+      ]
     };
   }
 
@@ -202,6 +250,12 @@ main(List<String> args) async {
         return {
           "output": result.output,
           "exitCode": result.exitCode
+        };
+      }),
+      "runAppleScript": addAction((Map<String, dynamic> params) async {
+        var result = await exec("osascript", args: ["-e", params["script"]], writeToBuffer: true);
+        return {
+          "output": result.output
         };
       }),
       "executeCommandStream": addAction((Map<String, dynamic> params) async {
@@ -290,6 +344,31 @@ main(List<String> args) async {
   });
 
   link.syncValue("/Poll_Rate");
+
+  {
+    var stats = await getFanStats();
+    var fans = {};
+    for (var key in stats.keys) {
+      fans[key.replaceAll(" ", "_")] = {
+        r"$name": key,
+        "Speed": {
+          r"$type": "number",
+          "?value": stats[key]["Speed"],
+          "@unit": "RPM"
+        }
+      };
+    }
+
+    if (fans.isNotEmpty) {
+      SimpleNode fansNode = link.addNode("/Fans", fans);
+      fansNode.serializable = false;
+
+      for (var key in fans.keys) {
+        fanNodes[key] = link.getNode("/Fans/${key.replaceAll(" ", "_")}");
+      }
+    }
+  }
+
   link.connect();
 }
 
@@ -308,6 +387,7 @@ SimpleNode cpuTemperatureNode = link["/CPU_Temperature"];
 SimpleNode processCountNode = link["/Processes"];
 SimpleNode batteryLevelNode = link["/Battery_Level"];
 SimpleNode systemTimeNode = link["/System_Time"];
+Map<String, SimpleNode> fanNodes = {};
 
 update([bool shouldScheduleUpdate = true]) async {
   if (!shouldScheduleUpdate && timer != null) {
@@ -351,7 +431,21 @@ update([bool shouldScheduleUpdate = true]) async {
       var level = await getBatteryPercentage();
       batteryLevelNode.updateValue(level);
     }
-  } catch (e) {}
+
+    {
+      Map stats;
+      for (SimpleNode node in fanNodes.values) {
+        SimpleNode speed = node.getChild("Speed");
+        if (speed.hasSubscriber) {
+          if (stats == null) {
+            stats = await getFanStats();
+          }
+          speed.updateValue(stats[node.configs[r"$name"]]["Speed"]);
+        }
+      }
+    }
+  } catch (e) {
+  }
 
   if (shouldScheduleUpdate) {
     timer = new Timer(interval, update);
@@ -359,11 +453,3 @@ update([bool shouldScheduleUpdate = true]) async {
 }
 
 Timer timer;
-
-const Map<String, int> POLL_RATE = const {
-  "1 second": 1000,
-  "2 seconds": 2000,
-  "3 seconds": 3000,
-  "4 seconds": 4000,
-  "5 seconds": 5000
-};
