@@ -192,7 +192,7 @@ main(List<String> args) async {
     };
   }
 
-  if (Platform.isMacOS) {
+  if (await doesSupportProcessorName()) {
     NODES["Processor_Model"] = {
       r"$name": "Processor Model",
       r"$type": "string",

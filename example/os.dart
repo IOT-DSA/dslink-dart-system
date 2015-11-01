@@ -16,6 +16,9 @@ main() async {
     print("Model: ${await getHardwareModel()}");
   }
 
-  print("Processor: ${await getProcessorName()}");
+  if (await doesSupportProcessorName()) {
+    print("Processor: ${await getProcessorName()}");
+  }
+
   print("Fan Stats: ${await getFanStats()}");
 }

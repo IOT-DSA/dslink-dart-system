@@ -523,6 +523,8 @@ Future<Map<String, num>> getDiskUsage() async {
 Future<bool> doesSupportModel() async {
   if (Platform.isMacOS) {
     return (await findExecutable("system_profiler")) != null;
+  } else if (Platform.isLinux) {
+    return await new Directory("/sys/devices/virtual/dmi/id").exists();
   }
   return false;
 }
@@ -531,6 +533,14 @@ Future<String> getHardwareModel() async {
   try {
     if (Platform.isMacOS) {
       return await getMacSystemProfilerProperty("SPHardwareDataType", "Model Name");
+    } else if (Platform.isLinux) {
+      var file = new File("/sys/devices/virtual/dmi/id/product_name");
+      var content = await file.readAsString();
+      if (content.trim() == "To be filled by O.E.M.") {
+        file = new File("/sys/devices/virtual/dmi/id/board_name");
+        content = await file.readAsString();
+      }
+      return content.trim();
     }
   } catch (e) {
   }
@@ -573,9 +583,23 @@ Future<String> getMacSystemProfilerProperty(String dataType, String name) async 
   return out.substring(start, out.indexOf("\n", start)).trim();
 }
 
+Future<bool> doesSupportProcessorName() async {
+  return Platform.isMacOS || Platform.isLinux;
+}
+
 Future<String> getProcessorName() async {
-  if (Platform.isMacOS) {
-    return await getMacSystemProfilerProperty("SPHardwareDataType", "Processor Name");
-  }
+  try {
+    if (Platform.isMacOS) {
+      return await getMacSystemProfilerProperty("SPHardwareDataType", "Processor Name");
+    } else if (Platform.isLinux) {
+      var file = new File("/proc/cpuinfo");
+      var lines = await file.readAsLines();
+      var line = lines.firstWhere((line) => line.startsWith("model name"), orElse: () => null);
+      if (line != null) {
+        var parts = line.split(":");
+        return parts.skip(1).join(":");
+      }
+    }
+  } catch (e) {}
   return "Unknown";
 }
