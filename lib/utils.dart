@@ -587,6 +587,10 @@ Future<bool> doesSupportProcessorName() async {
   return Platform.isMacOS || Platform.isLinux;
 }
 
+Future<bool> doesSupportOpenFilesCount() async {
+  return Platform.isMacOS || Platform.isLinux;
+}
+
 Future<String> getProcessorName() async {
   try {
     if (Platform.isMacOS) {
@@ -603,3 +607,19 @@ Future<String> getProcessorName() async {
   } catch (e) {}
   return "Unknown";
 }
+
+Future<int> getOpenFilesCount() async {
+  try {
+    if (Platform.isMacOS) {
+      var result = await Process.run("sysctl", const ["-n", "kern.num_files"]);
+      return int.parse(result.stdout.trim());
+    } else if (Platform.isLinux) {
+      var result = await Process.run("sysctl", const ["-n", "fs.file-nr"]);
+      String out = result.stdout;
+      return int.parse(out.split(WHITESPACE).first.trim());
+    }
+  } catch (e) {}
+  return 0;
+}
+
+final RegExp WHITESPACE = new RegExp(r"\t|\n| ");

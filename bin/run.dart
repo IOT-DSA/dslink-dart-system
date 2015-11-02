@@ -200,6 +200,13 @@ main(List<String> args) async {
     };
   }
 
+  if (await doesSupportOpenFilesCount()) {
+    NODES["Open_Files"] = {
+      r"$name": "Open Files",
+      r"$type": "int"
+    };
+  }
+
   if (await hasBattery()) {
     NODES["Battery_Level"] = {
       r"$name": "Battery Level",
@@ -387,6 +394,7 @@ SimpleNode cpuTemperatureNode = link["/CPU_Temperature"];
 SimpleNode processCountNode = link["/Processes"];
 SimpleNode batteryLevelNode = link["/Battery_Level"];
 SimpleNode systemTimeNode = link["/System_Time"];
+SimpleNode openFilesNode = link["/Open_Files"];
 Map<String, SimpleNode> fanNodes = {};
 
 update([bool shouldScheduleUpdate = true]) async {
@@ -430,6 +438,11 @@ update([bool shouldScheduleUpdate = true]) async {
     if (batteryLevelNode != null && (!shouldScheduleUpdate || batteryLevelNode.hasSubscriber)) {
       var level = await getBatteryPercentage();
       batteryLevelNode.updateValue(level);
+    }
+
+    if (openFilesNode != null && (!shouldScheduleUpdate || openFilesNode.hasSubscriber)) {
+      var count = await getOpenFilesCount();
+      openFilesNode.updateValue(count);
     }
 
     {
