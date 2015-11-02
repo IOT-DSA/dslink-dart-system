@@ -2,6 +2,7 @@ import "package:dslink_system/utils.dart";
 
 main() async {
   print("Operating System: ${await getOperatingSystemVersion()}");
+  await getCpuUsage(); // Linux needs to have getCpuUsage() called twice
   print("CPU Usage: ${await getCpuUsage()}%");
 
   if (await doesSupportCPUTemperature()) {
