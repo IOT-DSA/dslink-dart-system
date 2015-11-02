@@ -75,9 +75,9 @@ Future<Map<String, String>> parseVariableFile(String path) async {
 
 File procStatFile = new File("/proc/stat");
 
-int _prevTotal = 0;
-int _prevIdle = 0;
-int _prevLoad = 0;
+num _prevTotal = 0;
+num _prevIdle = 0;
+num _prevLoad = 0;
 
 onErrorNull(input) => null;
 
