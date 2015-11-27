@@ -142,7 +142,11 @@ Future<double> getCpuUsage() async {
       num load = 0;
 
       if (_prevTotal != 0) {
-        load = ((total - _prevTotal) / ((total + idle - _prevTotal - _prevIdle))) * 100;
+        var  p = ((total - _prevTotal) / ((total + idle - _prevTotal - _prevIdle)));
+        if (p == double.NAN) {
+          p = 0;
+        }
+        load = p * 100;
       }
 
       _prevLoad = load;
