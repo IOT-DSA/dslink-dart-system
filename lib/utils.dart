@@ -9,8 +9,7 @@ final RegExp PERCENTAGE_REGEX = new RegExp(r"([0-9\.]+)%\;");
 final bool useOldLinuxCpuUsageCalculator = false;
 
 Future<String> findExecutable(String name) async {
-  var paths =
-  Platform.environment["PATH"].split(Platform.isWindows ? ";" : ":");
+  var paths = Platform.environment["PATH"].split(Platform.isWindows ? ";" : ":");
   var tryFiles = [name];
 
   if (Platform.isWindows) {
@@ -186,7 +185,7 @@ Future<num> getFreeMemory() async {
     try {
       var result = await Process.run("free", const ["-b"]);
       List<String> lines = result.stdout.split("\n");
-      var lid = result.stdout.contains("available") || !result.stdout.contains("-/+ buffers/cache") ? 1 : 2;
+      var lid = (result.stdout.contains("available") || !result.stdout.contains("-/+ buffers/cache")) ? 1 : 2;
       var line = lines[lid];
       var parts = line.split(" ");
 
