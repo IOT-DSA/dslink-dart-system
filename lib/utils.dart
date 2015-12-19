@@ -81,7 +81,7 @@ num _prevLoad = 0;
 onErrorNull(input) => null;
 
 Future<double> getCpuUsage() async {
-  if (Platform.isLinux) {
+  if (Platform.isLinux || Platform.isAndroid) {
     if (useOldLinuxCpuUsageCalculator) {
       Future<List<int>> fetch() async {
         var lines = await procStatFile.readAsLines();
@@ -180,22 +180,47 @@ Future<double> getCpuUsage() async {
   return 0.0;
 }
 
+bool _hasFreeCommand;
+
+final File PROC_MEMINFO = new File("/proc/meminfo");
+
 Future<num> getFreeMemory() async {
-  if (Platform.isLinux) {
-    try {
-      var result = await Process.run("free", const ["-b"]);
-      List<String> lines = result.stdout.split("\n");
-      var lid = (result.stdout.contains("available") || !result.stdout.contains("-/+ buffers/cache")) ? 1 : 2;
-      var line = lines[lid];
-      var parts = line.split(" ");
+  if (Platform.isLinux || Platform.isAndroid) {
+    if (_hasFreeCommand == null) {
+      _hasFreeCommand = Platform.isAndroid ? false : (await findExecutable("free")) != null;
+    }
 
-      parts.removeWhere((x) => x.trim().isEmpty);
+    if (_hasFreeCommand) {
+      try {
+        var result = await Process.run("free", const ["-b"]);
+        List<String> lines = result.stdout.split("\n");
+        var lid = (result.stdout.contains("available") || !result.stdout.contains("-/+ buffers/cache")) ? 1 : 2;
+        var line = lines[lid];
+        var parts = line.split(" ");
 
-      var bytes = num.parse(parts[(lid == 1) ? 6 : 3]);
+        parts.removeWhere((x) => x.trim().isEmpty);
 
-      return convertBytesToMegabytes(bytes);
-    } catch (e) {
-      return 0;
+        var bytes = num.parse(parts[(lid == 1) ? 6 : 3]);
+
+        return convertBytesToMegabytes(bytes);
+      } catch (e) {
+        return 0;
+      }
+    } else {
+      try {
+        var lines = await PROC_MEMINFO.readAsLines();
+        var line = lines.firstWhere((line) {
+          return line.startsWith("MemFree:");
+        });
+        var partial = line.replaceAll(" ", "").split(":")[1];
+        if (partial.endsWith("kB")) {
+          partial = partial.substring(0, partial.length - 2);
+        }
+        return num.parse(partial) / 1024; // KB => MB
+      } catch (e) {
+        print(e);
+        return 0;
+      }
     }
   } else if (Platform.isMacOS) {
     var result = await Process.run("vm_stat", []);
@@ -231,6 +256,11 @@ int _memSizeBytes;
 
 
 Future<String> getSystemArchitecture() async {
+  if (Platform.isAndroid) {
+    var result = await Process.run("getprop", const ["ro.product.cpu.abi"]);
+    return result.stdout.trim();
+  }
+
   try {
     if (Platform.isLinux || Platform.isMacOS) {
       var result = await Process.run("uname", const ["-m"]);
@@ -242,6 +272,10 @@ Future<String> getSystemArchitecture() async {
 }
 
 Future<int> getProcessCount() async {
+  if (Platform.isAndroid) {
+    return 0;
+  }
+
   try {
     if (Platform.isWindows) {
       var result = await Process.run("wmic", "PROCESS LIST BRIEF".split(" "));
@@ -249,8 +283,8 @@ Future<int> getProcessCount() async {
       return lines.length;
     } else {
       var result = await Process.run("ps", Platform.isMacOS ?
-      const ["-A", "-o", "pid"] :
-      const ["-A", "--no-headers"]);
+        const ["-A", "-o", "pid"] :
+        const ["-A", "--no-headers"]);
 
       if (result.exitCode != 0) {
         throw "Error";
@@ -316,15 +350,31 @@ Future<int> getMemSizeBytes() async {
   if (Platform.isMacOS) {
     var result = await Process.run("sysctl", const ["-n", "hw.memsize"]);
     _memSizeBytes = int.parse(result.stdout);
-  } else if (Platform.isLinux) {
-    var result = await Process.run("free", const ["-b"]);
-    List<String> lines = result.stdout.split("\n");
-    var line = lines[1];
-    var parts = line.split(" ");
-    parts.removeWhere((x) => x.trim().isEmpty);
-    var bytes = num.parse(parts[1]);
+  } else if (Platform.isLinux || Platform.isAndroid) {
+    if (_hasFreeCommand == null) {
+      _hasFreeCommand = Platform.isAndroid ? false : (await findExecutable("free")) != null;
+    }
 
-    _memSizeBytes = bytes;
+    if (_hasFreeCommand) {
+      var result = await Process.run("free", const ["-b"]);
+      List<String> lines = result.stdout.split("\n");
+      var line = lines[1];
+      var parts = line.split(" ");
+      parts.removeWhere((x) => x.trim().isEmpty);
+      var bytes = num.parse(parts[1]);
+
+      _memSizeBytes = bytes;
+    } else {
+      var lines = await PROC_MEMINFO.readAsLines();
+      var line = lines.firstWhere((line) {
+        return line.startsWith("MemFree:");
+      });
+      var partial = line.replaceAll(" ", "").split(":")[1];
+      if (partial.endsWith("kB")) {
+        partial = partial.substring(0, partial.length - 2);
+      }
+      _memSizeBytes = (num.parse(partial) * 1024).toInt();
+    }
   } else {
     _memSizeBytes = await getWMICNumber("ComputerSystem get TotalPhysicalMemory");
     _memSizeBytes = _memSizeBytes;
@@ -389,7 +439,9 @@ Future<bool> doesSupportCPUTemperature() async {
 
 Future<String> getOperatingSystemVersion() async {
   try {
-    if (Platform.isMacOS) {
+    if (Platform.isAndroid) {
+      return "Android";
+    } else if (Platform.isMacOS) {
       var result = await Process.run(
         "system_profiler", const ["SPSoftwareDataType", "-detailLevel", "mini"]);
       String out = result.stdout;
@@ -415,6 +467,7 @@ Future<String> getOperatingSystemVersion() async {
       }
     }
   } catch (e) {}
+
   return "Unknown";
 }
 
@@ -561,6 +614,9 @@ Future<String> getHardwareIdentifier() async {
   try {
     if (Platform.isMacOS) {
       return await getMacSystemProfilerProperty("SPHardwareDataType", "Hardware UUID");
+    } else if (Platform.isAndroid) {
+      var result = await Process.run("getprop", const ["ro.product.cpu.abi"]);
+      return result.stdout.trim();
     }
   } catch (e) {
   }
