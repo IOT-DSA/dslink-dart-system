@@ -258,13 +258,16 @@ int _memSizeBytes;
 Future<String> getSystemArchitecture() async {
   if (Platform.isAndroid) {
     var result = await Process.run("getprop", const ["ro.product.cpu.abi"]);
-    return result.stdout.trim();
+    return result.stdout.toString().trim();
   }
 
   try {
     if (Platform.isLinux || Platform.isMacOS) {
       var result = await Process.run("uname", const ["-m"]);
-      return result.stdout.trim();
+      return result.stdout.toString().trim();
+    } else if (Platform.isAndroid) {
+      var result = await Process.run("getprop", const ["ro.product.cpu.abi"]);
+      return result.stdout.toString().trim();
     }
   } catch (e) {
   }
@@ -440,7 +443,8 @@ Future<bool> doesSupportCPUTemperature() async {
 Future<String> getOperatingSystemVersion() async {
   try {
     if (Platform.isAndroid) {
-      return "Android";
+      var result = await Process.run("getprop", const ["ro.build.version.release"]);
+      return "Android " + result.stdout.toString().trim();
     } else if (Platform.isMacOS) {
       var result = await Process.run(
         "system_profiler", const ["SPSoftwareDataType", "-detailLevel", "mini"]);
@@ -577,11 +581,15 @@ Future<Map<String, num>> getDiskUsage() async {
 }
 
 Future<bool> doesSupportModel() async {
-  if (Platform.isMacOS) {
-    return (await findExecutable("system_profiler")) != null;
-  } else if (Platform.isLinux) {
-    return await new Directory("/sys/devices/virtual/dmi/id").exists();
-  }
+  try {
+    if (Platform.isMacOS) {
+      return (await findExecutable("system_profiler")) != null;
+    } else if (Platform.isLinux) {
+      return await new Directory("/sys/devices/virtual/dmi/id").exists();
+    } else if (Platform.isAndroid) {
+      return true;
+    }
+  } catch (e) {}
   return false;
 }
 
@@ -597,6 +605,9 @@ Future<String> getHardwareModel() async {
         content = await file.readAsString();
       }
       return content.trim();
+    } else if (Platform.isAndroid) {
+      var result = await Process.run("getprop", const ["ro.product.display"]);
+      return result.stdout.toString().trim();
     }
   } catch (e) {
   }
@@ -606,6 +617,8 @@ Future<String> getHardwareModel() async {
 Future<bool> doesSupportHardwareIdentifier() async {
   if (Platform.isMacOS) {
     return (await findExecutable("system_profiler")) != null;
+  } else if (Platform.isAndroid) {
+    return true;
   }
   return false;
 }
@@ -615,8 +628,8 @@ Future<String> getHardwareIdentifier() async {
     if (Platform.isMacOS) {
       return await getMacSystemProfilerProperty("SPHardwareDataType", "Hardware UUID");
     } else if (Platform.isAndroid) {
-      var result = await Process.run("getprop", const ["ro.product.cpu.abi"]);
-      return result.stdout.trim();
+      var result = await Process.run("getprop", const ["ro.serialno"]);
+      return result.stdout.toString().trim();
     }
   } catch (e) {
   }
@@ -643,7 +656,7 @@ Future<String> getMacSystemProfilerProperty(String dataType, String name) async 
 }
 
 Future<bool> doesSupportProcessorName() async {
-  return Platform.isMacOS || Platform.isLinux;
+  return Platform.isMacOS || Platform.isLinux || Platform.isAndroid;
 }
 
 Future<bool> doesSupportOpenFilesCount() async {
@@ -671,7 +684,7 @@ Future<int> getOpenFilesCount() async {
   try {
     if (Platform.isMacOS) {
       var result = await Process.run("sysctl", const ["-n", "kern.num_files"]);
-      return int.parse(result.stdout.trim());
+      return int.parse(result.stdout.toString().trim());
     } else if (Platform.isLinux) {
       var result = await Process.run("sysctl", const ["-n", "fs.file-nr"]);
       String out = result.stdout;
@@ -682,3 +695,9 @@ Future<int> getOpenFilesCount() async {
 }
 
 final RegExp WHITESPACE = new RegExp(r"\t|\n| ");
+
+class ProcessInfo {
+  final int pid;
+
+  ProcessInfo(this.pid);
+}
