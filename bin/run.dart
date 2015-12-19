@@ -340,7 +340,11 @@ main(List<String> args) async {
     }
 
     interval = new Duration(milliseconds: (val * 1000).toInt());
-    update();
+    if (timer != null) {
+      timer.dispose();
+      timer = null;
+    }
+    timer = Scheduler.safeEvery(interval, update);
     await link.saveAsync();
   });
 
@@ -399,7 +403,8 @@ Map<String, SimpleNode> fanNodes = {};
 
 update([bool shouldScheduleUpdate = true]) async {
   if (!shouldScheduleUpdate && timer != null) {
-    timer.cancel();
+    timer.dispose();
+    timer = null;
   }
 
   try {
@@ -459,10 +464,6 @@ update([bool shouldScheduleUpdate = true]) async {
     }
   } catch (e) {
   }
-
-  if (shouldScheduleUpdate) {
-    timer = new Timer(interval, update);
-  }
 }
 
-Timer timer;
+Disposable timer;
