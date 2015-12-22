@@ -49,7 +49,7 @@ main(List<String> args) async {
     },
     "Processes": {
       r"$name": "Processes",
-      r"$type": "int",
+      r"$type": "number",
       "?value": 0
     },
     "Operating_System": {
@@ -140,7 +140,7 @@ main(List<String> args) async {
         },
         {
           "name": "exitCode",
-          "type": "int"
+          "type": "number"
         }
       ]
     },
@@ -203,7 +203,7 @@ main(List<String> args) async {
   if (await doesSupportOpenFilesCount()) {
     NODES["Open_Files"] = {
       r"$name": "Open Files",
-      r"$type": "int"
+      r"$type": "number"
     };
   }
 

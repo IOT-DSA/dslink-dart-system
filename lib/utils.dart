@@ -2,6 +2,7 @@ library dslink.system.utils;
 
 import "dart:async";
 import "dart:io";
+import "dart:math";
 
 import "package:path/path.dart" as pathlib;
 
@@ -143,10 +144,16 @@ Future<double> getCpuUsage() async {
       if (_prevTotal != 0) {
         var  p = ((total - _prevTotal) / ((total + idle - _prevTotal - _prevIdle)));
         if (p == double.NAN) {
-          p = 0;
+          p = 0.0;
         }
         load = p * 100;
       }
+
+      if (load == double.NAN) {
+        load = 0.0;
+      }
+
+      load = min(100, max(0, load));
 
       _prevLoad = load;
       _prevTotal = total;
@@ -695,9 +702,32 @@ Future<int> getOpenFilesCount() async {
 }
 
 final RegExp WHITESPACE = new RegExp(r"\t|\n| ");
+final RegExp ROOT_DEV_REGEX = new RegExp(r"root=([^ ]*)");
 
 class ProcessInfo {
   final int pid;
 
   ProcessInfo(this.pid);
+}
+
+Future<String> getRootDeviceName() async {
+  if (!Platform.isLinux) {
+    return null;
+  }
+
+  try {
+    var file = new File("/proc/cmdline");
+    var cmdline = await file.readAsString();
+    if (!cmdline.contains("root=")) {
+      return null;
+    }
+    String device = ROOT_DEV_REGEX.firstMatch(cmdline).group(1);
+    if (device.startsWith("/dev/")) {
+      device = device.substring(5);
+    }
+
+    return device;
+  } catch (e) {
+    return null;
+  }
 }
