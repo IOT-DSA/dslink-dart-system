@@ -19,6 +19,14 @@
     },
     "token": {
       "type": "string"
+    },
+    "linux_use_free_command": {
+      "type": "bool",
+      "default": true
+    },
+    "offset_memory_disk_cache": {
+      "type": "bool",
+      "default": true
     }
   }
 }

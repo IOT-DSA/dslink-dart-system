@@ -4,6 +4,8 @@ main() async {
   print("Operating System: ${await getOperatingSystemVersion()}");
   await getCpuUsage(); // Linux needs to have getCpuUsage() called twice
   print("CPU Usage: ${await getCpuUsage()}%");
+  print("Total Memory: ${await getMemSizeBytes()} bytes");
+  print("Free Memory: ${await getFreeMemory()} bytes");
 
   if (await doesSupportCPUTemperature()) {
     print("CPU Temperature: ${await getCpuTemp()}°C");

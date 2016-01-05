@@ -8,6 +8,8 @@ import "package:path/path.dart" as pathlib;
 
 final RegExp PERCENTAGE_REGEX = new RegExp(r"([0-9\.]+)%\;");
 final bool useOldLinuxCpuUsageCalculator = false;
+bool useLinuxFreeCommand = true;
+bool offsetLinuxDiskCache = true;
 
 Future<String> findExecutable(String name) async {
   var paths = Platform.environment["PATH"].split(Platform.isWindows ? ";" : ":");
@@ -194,22 +196,35 @@ final File PROC_MEMINFO = new File("/proc/meminfo");
 Future<num> getFreeMemory() async {
   if (Platform.isLinux || Platform.isAndroid) {
     if (_hasFreeCommand == null) {
-      _hasFreeCommand = Platform.isAndroid ? false : (await findExecutable("free")) != null;
+      _hasFreeCommand = Platform.isAndroid ?
+        false :
+        (await findExecutable("free")) != null;
     }
 
-    if (_hasFreeCommand) {
+    if (_hasFreeCommand && useLinuxFreeCommand) {
       try {
         var result = await Process.run("free", const ["-b"]);
         List<String> lines = result.stdout.split("\n");
-        var lid = (result.stdout.contains("available") || !result.stdout.contains("-/+ buffers/cache")) ? 1 : 2;
-        var line = lines[lid];
-        var parts = line.split(" ");
 
-        parts.removeWhere((x) => x.trim().isEmpty);
+        if (offsetLinuxDiskCache) {
+          var lid = (result.stdout.contains("available") ||
+            !result.stdout.contains("-/+ buffers/cache")) ? 1 : 2;
+          var line = lines[lid];
+          var parts = line.split(" ");
 
-        var bytes = num.parse(parts[(lid == 1) ? 6 : 3]);
+          parts.removeWhere((x) => x.trim().isEmpty);
 
-        return convertBytesToMegabytes(bytes);
+          var bytes = num.parse(parts[(lid == 1) ? 6 : 3]);
+
+          return bytes;
+        } else {
+          var lid = 1;
+          var line = lines[lid];
+          var parts = line.split(" ");
+          parts.removeWhere((x) => x.trim().isEmpty);
+          var bytes = num.parse(parts[3]);
+          return bytes;
+        }
       } catch (e) {
         return 0;
       }
@@ -223,7 +238,7 @@ Future<num> getFreeMemory() async {
         if (partial.endsWith("kB")) {
           partial = partial.substring(0, partial.length - 2);
         }
-        return num.parse(partial) / 1024; // KB => MB
+        return num.parse(partial) * 1024; // KB => Bytes
       } catch (e) {
         print(e);
         return 0;
@@ -249,9 +264,9 @@ Future<num> getFreeMemory() async {
     var free = get("Pages free");
     var spec = get("Pages speculative");
 
-    return ((free + spec) * pageSize) / 1024 / 1024;
+    return ((free + spec) * pageSize);
   } else if (Platform.isWindows) {
-    return await getWMICNumber("OS get FreePhysicalMemory") / 1024;
+    return await getWMICNumber("OS get FreePhysicalMemory") * 1024; // KB => Bytes
   }
 
   return 0;
@@ -362,7 +377,9 @@ Future<int> getMemSizeBytes() async {
     _memSizeBytes = int.parse(result.stdout);
   } else if (Platform.isLinux || Platform.isAndroid) {
     if (_hasFreeCommand == null) {
-      _hasFreeCommand = Platform.isAndroid ? false : (await findExecutable("free")) != null;
+      _hasFreeCommand = Platform.isAndroid ?
+        false :
+        (await findExecutable("free")) != null;
     }
 
     if (_hasFreeCommand) {
@@ -387,7 +404,6 @@ Future<int> getMemSizeBytes() async {
     }
   } else {
     _memSizeBytes = await getWMICNumber("ComputerSystem get TotalPhysicalMemory");
-    _memSizeBytes = _memSizeBytes;
   }
 
   totalMemoryMegabytes = _memSizeBytes / 1024 / 1024;
@@ -730,4 +746,29 @@ Future<String> getRootDeviceName() async {
   } catch (e) {
     return null;
   }
+}
+
+bool getInputBoolean(input) {
+  if (input == null) {
+    return false;
+  }
+
+  if (input == true) {
+    return true;
+  }
+
+  if (input == false) {
+    return false;
+  }
+
+  if (input is String) {
+    return const [
+      "true",
+      "yes",
+      "on",
+      "y"
+    ].contains(input.toLowerCase());
+  }
+
+  return false;
 }

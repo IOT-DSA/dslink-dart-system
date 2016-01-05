@@ -8,6 +8,7 @@ import "package:dslink/utils.dart";
 
 import "package:dslink_system/utils.dart";
 import "package:dslink_system/io.dart";
+import "package:args/args.dart";
 
 LinkProvider link;
 
@@ -40,7 +41,9 @@ main(List<String> args) async {
   final Map<String, dynamic> NODES = {
     "Platform": {
       r"$type": "string",
-      "?value": PLATFORMS.containsKey(Platform.operatingSystem) ? PLATFORMS[Platform.operatingSystem] : Platform.operatingSystem
+      "?value": PLATFORMS.containsKey(Platform.operatingSystem) ?
+        PLATFORMS[Platform.operatingSystem] :
+        Platform.operatingSystem
     },
     "Processor_Count": {
       r"$name": "Processor Count",
@@ -260,7 +263,12 @@ main(List<String> args) async {
         };
       }),
       "runAppleScript": addAction((Map<String, dynamic> params) async {
-        var result = await exec("osascript", args: ["-e", params["script"]], writeToBuffer: true);
+        var result = await exec(
+          "osascript",
+          args: ["-e", params["script"]],
+          writeToBuffer: true
+        );
+
         return {
           "output": result.output
         };
@@ -279,7 +287,10 @@ main(List<String> args) async {
           cmd
         ]).then((Process proc) {
           process = proc;
-          proc.stdout.transform(const Utf8Decoder()).transform(const LineSplitter()).listen((line) {
+          proc.stdout
+            .transform(const Utf8Decoder())
+            .transform(const LineSplitter())
+            .listen((line) {
             if (!controller.isClosed) {
               controller.add({
                 "type": "stdout",
@@ -288,7 +299,10 @@ main(List<String> args) async {
             }
           });
 
-          proc.stderr.transform(const Utf8Decoder()).transform(const LineSplitter()).listen((line) {
+          proc.stderr
+            .transform(const Utf8Decoder())
+            .transform(const LineSplitter())
+            .listen((line) {
             if (!controller.isClosed) {
               controller.add({
                 "type": "stderr",
@@ -313,6 +327,19 @@ main(List<String> args) async {
     }
   );
 
+  var argp = new ArgParser();
+  argp.addOption("linux_use_free_command", callback: (value) {
+    useLinuxFreeCommand = getInputBoolean(value);
+  }, help: "Use the 'free' command on Linux",
+    defaultsTo: "true",
+    valueHelp: "true/false");
+
+  argp.addOption("offset_memory_disk_cache", callback: (value) {
+    offsetLinuxDiskCache = getInputBoolean(value);
+  }, help: "Offset Memory Usage based on Disk Cache",
+    valueHelp: "true/false",
+    defaultsTo: "true");
+  link.configure(argp: argp);
   link.init();
 
   for (var key in NODES.keys) {
@@ -408,21 +435,30 @@ update([bool shouldScheduleUpdate = true]) async {
   }
 
   try {
-    if (!shouldScheduleUpdate || cpuUsageNode.hasSubscriber) {
+    if (!shouldScheduleUpdate ||
+        cpuUsageNode.hasSubscriber) {
       var usage = await getCpuUsage();
       cpuUsageNode.updateValue(usage);
     }
 
-    if (!shouldScheduleUpdate || freeMemoryNode.hasSubscriber || memoryUsageNode.hasSubscriber || usedMemoryNode.hasSubscriber) {
+    if (!shouldScheduleUpdate ||
+        freeMemoryNode.hasSubscriber ||
+        memoryUsageNode.hasSubscriber ||
+        usedMemoryNode.hasSubscriber) {
+      var total = await getMemSizeBytes();
       var free = await getFreeMemory();
-      var used = totalMemoryMegabytes - free;
-      var percentage = (used / totalMemoryMegabytes) * 100;
-      freeMemoryNode.updateValue(free);
-      usedMemoryNode.updateValue(used);
+      var used = total - free;
+      var percentage = (used / total) * 100;
+      freeMemoryNode.updateValue(convertBytesToMegabytes(free));
+      usedMemoryNode.updateValue(convertBytesToMegabytes(used));
       memoryUsageNode.updateValue(percentage);
     }
 
-    if (!shouldScheduleUpdate || diskUsageNode.hasSubscriber || totalDiskSpaceNode.hasSubscriber || availableDiskSpaceNode.hasSubscriber || usedDiskSpaceNode.hasSubscriber) {
+    if (!shouldScheduleUpdate ||
+        diskUsageNode.hasSubscriber ||
+        totalDiskSpaceNode.hasSubscriber ||
+        availableDiskSpaceNode.hasSubscriber ||
+        usedDiskSpaceNode.hasSubscriber) {
       var usage = await getDiskUsage();
       diskUsageNode.updateValue(usage["percentage"]);
       totalDiskSpaceNode.updateValue(usage["total"]);
@@ -430,22 +466,26 @@ update([bool shouldScheduleUpdate = true]) async {
       availableDiskSpaceNode.updateValue(usage["available"]);
     }
 
-    if (cpuTemperatureNode != null && (!shouldScheduleUpdate || cpuTemperatureNode.hasSubscriber)) {
+    if (cpuTemperatureNode != null &&
+      (!shouldScheduleUpdate || cpuTemperatureNode.hasSubscriber)) {
       var temp = await getCpuTemp();
       cpuTemperatureNode.updateValue(temp);
     }
 
-    if (processCountNode != null && (!shouldScheduleUpdate || processCountNode.hasSubscriber)) {
+    if (processCountNode != null &&
+      (!shouldScheduleUpdate || processCountNode.hasSubscriber)) {
       var count = await getProcessCount();
       processCountNode.updateValue(count);
     }
 
-    if (batteryLevelNode != null && (!shouldScheduleUpdate || batteryLevelNode.hasSubscriber)) {
+    if (batteryLevelNode != null &&
+      (!shouldScheduleUpdate || batteryLevelNode.hasSubscriber)) {
       var level = await getBatteryPercentage();
       batteryLevelNode.updateValue(level);
     }
 
-    if (openFilesNode != null && (!shouldScheduleUpdate || openFilesNode.hasSubscriber)) {
+    if (openFilesNode != null &&
+      (!shouldScheduleUpdate || openFilesNode.hasSubscriber)) {
       var count = await getOpenFilesCount();
       openFilesNode.updateValue(count);
     }
