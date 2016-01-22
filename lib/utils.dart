@@ -161,6 +161,9 @@ Future<double> getCpuUsage() async {
       _prevTotal = total;
       _prevIdle = idle;
 
+      split = content = null;
+      d.clear();
+
       return load;
     }
   } else if (Platform.isMacOS) {
@@ -410,6 +413,10 @@ Future<int> getMemSizeBytes() async {
       parts.removeWhere((x) => x.trim().isEmpty);
       var bytes = num.parse(parts[1]);
 
+      lines.clear();
+      parts.clear();
+      result = line = lines = parts = null;
+
       _memSizeBytes = bytes;
     } else {
       var lines = await PROC_MEMINFO.readAsLines();
@@ -449,6 +456,8 @@ Future<Map<String, Map<String, dynamic>>> getFanStats() async {
           "Speed": speed
         };
       }
+      lines.clear();
+      line = result = out = null;
       return map;
     }
   } catch (e) {}
@@ -526,11 +535,15 @@ Future<num> getCpuTemp() async {
   if (Platform.isMacOS) {
     try {
       var result = await Process.run("istats", const ["cpu", "temp"]);
+      result = null;
       if (result.exitCode != 0) {
         return 0.0;
       }
       List<String> lines = result.stdout.split("\n");
-      return num.parse(lines.first.split(" ")[2].split("°")[0]);
+      var temp = num.parse(lines.first.split(" ")[2].split("°")[0]);
+      lines.clear();
+      result = lines = null;
+      return temp;
     } catch (e) {
       return 0.0;
     }
@@ -540,16 +553,23 @@ Future<num> getCpuTemp() async {
     try {
       var result = await Process.run("sensors", const ["coretemp-isa-0000"]);
       if (result.exitCode != 0) {
+        result = null;
         return 0.0;
       }
       List<String> lines = result.stdout.split("\n");
-      String line = lines.firstWhere((x) => x.startsWith("Physical id 0:"), orElse: () => null);
+      String line = lines.firstWhere(
+        (x) => x.startsWith("Physical id 0:"),
+          orElse: () => null
+      );
       if (line == null) {
         return 0.0;
       }
       String x = line.substring("Physical id 0:".length).trim();
 
-      return num.parse(x.split("°")[0]);
+      var deg = num.parse(x.split("°")[0]);
+      lines.clear();
+      lines = result = line = x = null;
+      return deg;
     } catch (e) {
       return 0.0;
     }
@@ -569,7 +589,11 @@ num convertBytesToMegabytes(num bytes) {
 Future<int> getWMICNumber(String query) async {
   try {
     var result = await Process.run("wmic", query.split(" "));
-    var lines = result.stdout.split("\n").where((String x) => x.isNotEmpty).skip(1).toList();
+    var lines = result.stdout
+      .split("\n")
+      .where((String x) => x.isNotEmpty)
+      .skip(1)
+      .toList();
     return int.parse(lines[0]);
   } catch (e) {
     return 0;
@@ -592,6 +616,10 @@ Future<Map<String, num>> getDiskUsage() async {
       var available = int.parse(parts[3]) / 1024;
       var total = int.parse(parts[1]) / 1024;
 
+      lines.clear();
+      parts.clear();
+      lines = line = parts = null;
+
       return {
         "used": used,
         "available": available,
@@ -611,6 +639,10 @@ Future<Map<String, num>> getDiskUsage() async {
     var total = getBytesFor(1) / 1024 / 1024;
     var available = getBytesFor(2) / 1024 / 1024;
     var used = total - available;
+
+    result = null;
+    lines.clear();
+    lines = null;
 
     return {
       "used": used,
@@ -727,11 +759,15 @@ Future<int> getOpenFilesCount() async {
   try {
     if (Platform.isMacOS) {
       var result = await Process.run("sysctl", const ["-n", "kern.num_files"]);
-      return int.parse(result.stdout.toString().trim());
+      var count = int.parse(result.stdout.toString().trim());
+      result = null;
+      return count;
     } else if (Platform.isLinux) {
       var result = await Process.run("sysctl", const ["-n", "fs.file-nr"]);
       String out = result.stdout;
-      return int.parse(out.split(WHITESPACE).first.trim());
+      var count = int.parse(out.split(WHITESPACE).first.trim());
+      result = out = null;
+      return count;
     }
   } catch (e) {}
   return 0;
