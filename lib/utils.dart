@@ -216,6 +216,10 @@ Future<num> getFreeMemory() async {
 
           var bytes = num.parse(parts[(lid == 1) ? 6 : 3]);
 
+          lines.clear();
+          lines = null;
+          parts = null;
+
           return bytes;
         } else {
           var lid = 1;
@@ -223,6 +227,11 @@ Future<num> getFreeMemory() async {
           var parts = line.split(" ");
           parts.removeWhere((x) => x.trim().isEmpty);
           var bytes = num.parse(parts[3]);
+
+          lines.clear();
+          lines = null;
+          parts = null;
+
           return bytes;
         }
       } catch (e) {
@@ -238,6 +247,8 @@ Future<num> getFreeMemory() async {
         if (partial.endsWith("kB")) {
           partial = partial.substring(0, partial.length - 2);
         }
+        lines.clear();
+        lines = null;
         return num.parse(partial) * 1024; // KB => Bytes
       } catch (e) {
         print(e);
@@ -263,6 +274,9 @@ Future<num> getFreeMemory() async {
 
     var free = get("Pages free");
     var spec = get("Pages speculative");
+
+    lines.clear();
+    lines = null;
 
     return ((free + spec) * pageSize);
   } else if (Platform.isWindows) {
@@ -305,7 +319,11 @@ Future<int> getProcessCount() async {
     if (Platform.isWindows) {
       var result = await Process.run("wmic", "PROCESS LIST BRIEF".split(" "));
       var lines = result.stdout.split("\n").where((String x) => x.isNotEmpty).skip(1).toList();
-      return lines.length;
+      var count = lines.length;
+      lines.clear();
+      lines = null;
+
+      return count;
     } else {
       var result = await Process.run("ps", Platform.isMacOS ?
         const ["-A", "-o", "pid"] :
@@ -315,9 +333,11 @@ Future<int> getProcessCount() async {
         throw "Error";
       }
 
-      return result.stdout
+      var len = result.stdout
         .split("\n")
         .length;
+      result = null;
+      return len;
     }
   } catch (e) {
     return 0;
