@@ -1,4 +1,5 @@
 import "package:dslink_system/utils.dart";
+import "dart:io" as IO;
 
 main() async {
   print("Operating System: ${await getOperatingSystemVersion()}");
@@ -24,4 +25,6 @@ main() async {
   }
 
   print("Fan Stats: ${await getFanStats()}");
+  var size = await getProcessMemoryUsage(IO.pid) / 1024 / 1024;
+  print("Our Memory Usage: ${size}mb");
 }

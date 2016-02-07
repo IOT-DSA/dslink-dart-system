@@ -455,9 +455,10 @@ Future<Map<String, Map<String, dynamic>>> getFanStats() async {
         map["Fan ${id}"] = {
           "Speed": speed
         };
+        line = null;
       }
+      result = out = null;
       lines.clear();
-      line = result = out = null;
       return map;
     }
   } catch (e) {}
@@ -827,4 +828,32 @@ bool getInputBoolean(input) {
   }
 
   return false;
+}
+
+Future<bool> doesSupportPerProcessStats() async {
+  return (Platform.isLinux || Platform.isMacOS) &&
+    (await findExecutable("ps")) != null;
+}
+
+Future<int> getProcessMemoryUsage(int pid) async {
+  try {
+    var result = await Process.run("ps", [
+      "-p",
+      pid.toString(),
+      "-o",
+      "rss"
+    ]);
+
+    if (result.exitCode != 0) {
+      throw "Failed";
+    }
+
+    List<String> lines = result.stdout.toString().split("\n");
+    lines.removeWhere((a) => a.trim().isEmpty);
+
+    return int.parse(lines.last.trim()) * 1024;
+  } catch (e) {
+  }
+
+  return -1;
 }
