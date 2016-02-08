@@ -27,10 +27,6 @@
     "offset_memory_disk_cache": {
       "type": "bool",
       "default": true
-    },
-    "enable_dsa_diagnostics_mode": {
-      "type": "bool",
-      "default": false
     }
   }
 }

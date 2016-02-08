@@ -243,6 +243,14 @@ main(List<String> args) async {
     };
   }
 
+  NODES["Diagnostics_Mode"] = {
+    r"$is": "diagnosticsMode",
+    r"$name": "Diagnostics Mode",
+    r"$type": "bool[disabled,enabled]",
+    r"$writable": "write",
+    "?value": false
+  };
+
   link = new LinkProvider(
     args,
     "System-",
@@ -325,7 +333,10 @@ main(List<String> args) async {
         });
 
         return controller.stream;
-      })
+      }),
+      "diagnosticsMode": (String path) {
+        return new DiagnosticsModeNode(path);
+      }
     }
   );
 
@@ -342,16 +353,15 @@ main(List<String> args) async {
     valueHelp: "true/false",
     defaultsTo: "true");
 
-  argp.addOption("enable_dsa_diagnostics_mode", callback: (value) {
-    enableDsaDiagnosticMode = getInputBoolean(value);
-  }, help: "Enable DSA Diagnostic Mode",
-    valueHelp: "true/false",
-    defaultsTo: "false");
   link.configure(argp: argp);
   link.init();
 
   for (var key in NODES.keys) {
     if (key == "Poll_Rate") {
+      continue;
+    }
+
+    if (key == "Diagnostics_Mode" && link["/Diagnostics_Mode"] is DiagnosticsModeNode) {
       continue;
     }
 
@@ -390,6 +400,8 @@ main(List<String> args) async {
   });
 
   link.syncValue("/Poll_Rate");
+  link.syncValue("/Diagnostics_Mode");
+  enableDsaDiagnosticMode = link.val("/Diagnostics_Mode") == true;
 
   {
     var stats = await getFanStats();
@@ -416,20 +428,6 @@ main(List<String> args) async {
   }
 
   link.connect();
-
-  if (enableDsaDiagnosticMode == true && (Platform.isLinux || Platform.isMacOS)) {
-    var tryPaths = [
-      "../../.pids",
-      ".pids"
-    ];
-
-    for (String p in tryPaths) {
-      var file = new File(p);
-      if (await file.exists()) {
-        pidTrackingFile = file;
-      }
-    }
-  }
 }
 
 File pidTrackingFile;
@@ -531,6 +529,20 @@ update([bool shouldScheduleUpdate = true]) async {
   }
 
   try {
+    if (enableDsaDiagnosticMode == true && pidTrackingFile == null && (Platform.isLinux || Platform.isMacOS)) {
+      var tryPaths = [
+        "../../.pids",
+        ".pids"
+      ];
+
+      for (String p in tryPaths) {
+        var file = new File(p);
+        if (await file.exists()) {
+          pidTrackingFile = file;
+        }
+      }
+    }
+
     if (enableDsaDiagnosticMode != true || pidTrackingFile == null || !(await pidTrackingFile.exists())) {
       return;
     }
@@ -559,6 +571,8 @@ update([bool shouldScheduleUpdate = true]) async {
             "?value": -1.0
           }
         });
+
+        node.serializable = false;
       }
 
       SimpleNode cmdNode = link["/${p}/command"];
@@ -572,8 +586,36 @@ update([bool shouldScheduleUpdate = true]) async {
         memoryNode.updateValue(await getProcessMemoryUsage(p));
       }
     }
+
+    lastPidSet = pids;
   } catch (e, stack) {
     logger.warning("Error in PID tracker.", e, stack);
+  }
+}
+
+class DiagnosticsModeNode extends SimpleNode {
+  DiagnosticsModeNode(String path) : super(path);
+
+  @override
+  onSetValue(val) {
+    if (val == true) {
+      enableDsaDiagnosticMode = true;
+    } else {
+      for (int p in lastPidSet) {
+        try {
+          link.removeNode("/${p}");
+        } catch (e) {}
+      }
+
+      lastPidSet.clear();
+      enableDsaDiagnosticMode = false;
+    }
+
+    updateValue(val);
+
+    link.save();
+
+    return true;
   }
 }
 
