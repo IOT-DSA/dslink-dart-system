@@ -559,16 +559,19 @@ update([bool shouldScheduleUpdate = true]) async {
     for (var p in pids) {
       SimpleNode node = link["/${p}"];
       if (node == null) {
+        var cmd = await getProcessCommand(p);
+
         node = link.addNode("/${p}", {
           "command": {
             r"$name": "Command",
-            r"$type": "string"
+            r"$type": "string",
+            "?value": cmd
           },
           "memory": {
             r"$name": "Memory Usage",
             r"$type": "number",
             "@unit": "mb",
-            "?value": -1.0
+            "?value": 0.0
           }
         });
 
