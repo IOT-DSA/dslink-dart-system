@@ -835,6 +835,29 @@ Future<bool> doesSupportPerProcessStats() async {
     (await findExecutable("ps")) != null;
 }
 
+Future<String> getProcessCommand(int pid) async {
+  try {
+    var result = await Process.run("ps", [
+      "-p",
+      pid.toString(),
+      "-o",
+      "command"
+    ]);
+
+    if (result.exitCode != 0) {
+      throw "Failed";
+    }
+
+    List<String> lines = result.stdout.toString().split("\n");
+    lines.removeWhere((a) => a.trim().isEmpty);
+
+    return lines.last.trim();
+  } catch (e) {
+  }
+
+  return "Unknown";
+}
+
 Future<int> getProcessMemoryUsage(int pid) async {
   try {
     var result = await Process.run("ps", [

@@ -12,6 +12,8 @@ import "package:args/args.dart";
 
 LinkProvider link;
 
+bool enableDsaDiagnosticMode = false;
+
 typedef Action(Map<String, dynamic> params);
 typedef ActionWithPath(Path path, Map<String, dynamic> params);
 
@@ -339,6 +341,12 @@ main(List<String> args) async {
   }, help: "Offset Memory Usage based on Disk Cache",
     valueHelp: "true/false",
     defaultsTo: "true");
+
+  argp.addOption("enable_dsa_diagnostics_mode", callback: (value) {
+    enableDsaDiagnosticMode = getInputBoolean(value);
+  }, help: "Enable DSA Diagnostic Mode",
+    valueHelp: "true/false",
+    defaultsTo: "false");
   link.configure(argp: argp);
   link.init();
 
@@ -408,8 +416,24 @@ main(List<String> args) async {
   }
 
   link.connect();
+
+  if (enableDsaDiagnosticMode == true && (Platform.isLinux || Platform.isMacOS)) {
+    var tryPaths = [
+      "../../.pids",
+      ".pids"
+    ];
+
+    for (String p in tryPaths) {
+      var file = new File(p);
+      if (await file.exists()) {
+        pidTrackingFile = file;
+      }
+    }
+  }
 }
 
+File pidTrackingFile;
+Set<int> lastPidSet = new Set<int>();
 Duration interval = new Duration(seconds: 2);
 
 SimpleNode cpuUsageNode = link["/CPU_Usage"];
@@ -502,7 +526,54 @@ update([bool shouldScheduleUpdate = true]) async {
         }
       }
     }
-  } catch (e) {
+  } catch (e, stack) {
+    logger.warning("Error in statistic updater.", e, stack);
+  }
+
+  try {
+    if (enableDsaDiagnosticMode != true || pidTrackingFile == null || !(await pidTrackingFile.exists())) {
+      return;
+    }
+
+    Set<int> pids = (const JsonDecoder()
+      .convert(await pidTrackingFile.readAsString())
+      as List<int>
+    ).toSet();
+
+    for (var p in lastPidSet.difference(pids)) {
+      link.removeNode("/${p}");
+    }
+
+    for (var p in pids) {
+      SimpleNode node = link["/${p}"];
+      if (node == null) {
+        node = link.addNode("/${p}", {
+          "command": {
+            r"$name": "Command",
+            r"$type": "string"
+          },
+          "memory": {
+            r"$name": "Memory Usage",
+            r"$type": "number",
+            "@unit": "mb",
+            "?value": -1.0
+          }
+        });
+      }
+
+      SimpleNode cmdNode = link["/${p}/command"];
+      SimpleNode memoryNode = link["/${p}/memory"];
+
+      if (cmdNode != null && cmdNode.hasSubscriber) {
+        cmdNode.updateValue(await getProcessCommand(p));
+      }
+
+      if (memoryNode != null && memoryNode.hasSubscriber) {
+        memoryNode.updateValue(await getProcessMemoryUsage(p));
+      }
+    }
+  } catch (e, stack) {
+    logger.warning("Error in PID tracker.", e, stack);
   }
 }
 

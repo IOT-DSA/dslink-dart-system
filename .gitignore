@@ -14,3 +14,4 @@ out/
 .dslink.key
 nodes.json
 .packages
+.pids
