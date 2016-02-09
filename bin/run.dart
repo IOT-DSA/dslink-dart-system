@@ -44,8 +44,8 @@ main(List<String> args) async {
     "Platform": {
       r"$type": "string",
       "?value": PLATFORMS.containsKey(Platform.operatingSystem) ?
-        PLATFORMS[Platform.operatingSystem] :
-        Platform.operatingSystem
+      PLATFORMS[Platform.operatingSystem] :
+      Platform.operatingSystem
     },
     "Processor_Count": {
       r"$name": "Processor Count",
@@ -458,15 +458,15 @@ update([bool shouldScheduleUpdate = true]) async {
 
   try {
     if (!shouldScheduleUpdate ||
-        cpuUsageNode.hasSubscriber) {
+      cpuUsageNode.hasSubscriber) {
       var usage = await getCpuUsage();
       cpuUsageNode.updateValue(usage);
     }
 
     if (!shouldScheduleUpdate ||
-        freeMemoryNode.hasSubscriber ||
-        memoryUsageNode.hasSubscriber ||
-        usedMemoryNode.hasSubscriber) {
+      freeMemoryNode.hasSubscriber ||
+      memoryUsageNode.hasSubscriber ||
+      usedMemoryNode.hasSubscriber) {
       var total = await getMemSizeBytes();
       var free = await getFreeMemory();
       var used = total - free;
@@ -477,10 +477,10 @@ update([bool shouldScheduleUpdate = true]) async {
     }
 
     if (!shouldScheduleUpdate ||
-        diskUsageNode.hasSubscriber ||
-        totalDiskSpaceNode.hasSubscriber ||
-        availableDiskSpaceNode.hasSubscriber ||
-        usedDiskSpaceNode.hasSubscriber) {
+      diskUsageNode.hasSubscriber ||
+      totalDiskSpaceNode.hasSubscriber ||
+      availableDiskSpaceNode.hasSubscriber ||
+      usedDiskSpaceNode.hasSubscriber) {
       var usage = await getDiskUsage();
       diskUsageNode.updateValue(usage["percentage"]);
       totalDiskSpaceNode.updateValue(usage["total"]);
@@ -547,21 +547,40 @@ update([bool shouldScheduleUpdate = true]) async {
       return;
     }
 
-    Set<int> pids = (const JsonDecoder()
-      .convert(await pidTrackingFile.readAsString())
-      as List<int>
-    ).toSet();
+    var pids = const JsonDecoder().convert(await pidTrackingFile.readAsString());
 
-    for (var p in lastPidSet.difference(pids)) {
-      link.removeNode("/${p}");
+    Map<int, String> pidmap = {};
+
+    if (pids is List) {
+      for (var i in pids) {
+        pidmap[i] = i.toString();
+      }
+    } else if (pids is Map) {
+      for (var key in pids.keys) {
+        pidmap[int.parse(key)] = pids[key];
+      }
     }
 
-    for (var p in pids) {
-      SimpleNode node = link["/${p}"];
-      if (node == null) {
-        var cmd = await getProcessCommand(p);
+    SimpleNode procNode = link["/proc"];
+    if (procNode == null) {
+      procNode = link.addNode("/proc", {
+        r"$name": "Processes"
+      });
+    }
 
-        node = link.addNode("/${p}", {
+    procNode.children.keys.where((x) {
+      return !pidmap.containsValue(x);
+    }).toList().forEach((e) {
+      link.removeNode("/proc/${e}");
+    });
+
+    for (var pid in pidmap.keys) {
+      String p = pidmap[pid];
+      SimpleNode node = link["/proc/${p}"];
+      if (node == null) {
+        var cmd = await getProcessCommand(pid);
+
+        node = link.addNode("/proc/${p}", {
           "command": {
             r"$name": "Command",
             r"$type": "string",
@@ -578,19 +597,20 @@ update([bool shouldScheduleUpdate = true]) async {
         node.serializable = false;
       }
 
-      SimpleNode cmdNode = link["/${p}/command"];
-      SimpleNode memoryNode = link["/${p}/memory"];
+      SimpleNode cmdNode = link["/proc/${p}/command"];
+      SimpleNode memoryNode = link["/proc/${p}/memory"];
 
       if (cmdNode != null && cmdNode.hasSubscriber) {
-        cmdNode.updateValue(await getProcessCommand(p));
+        cmdNode.updateValue(await getProcessCommand(pid));
       }
 
       if (memoryNode != null && memoryNode.hasSubscriber) {
-        memoryNode.updateValue(await getProcessMemoryUsage(p));
+        var usage = await getProcessMemoryUsage(pid);
+        memoryNode.updateValue(usage / 1024 / 1024);
       }
     }
 
-    lastPidSet = pids;
+    lastPidSet = pidmap.keys.toSet();
   } catch (e, stack) {
     logger.warning("Error in PID tracker.", e, stack);
   }
@@ -604,11 +624,11 @@ class DiagnosticsModeNode extends SimpleNode {
     if (val == true) {
       enableDsaDiagnosticMode = true;
     } else {
-      for (int p in lastPidSet) {
-        try {
-          link.removeNode("/${p}");
-        } catch (e) {}
-      }
+      try {
+        link["/proc"].children.keys.map((x) {
+          return "/proc/${x}";
+        }).toList().forEach(link.removeNode);
+      } catch (e) {}
 
       lastPidSet.clear();
       enableDsaDiagnosticMode = false;
