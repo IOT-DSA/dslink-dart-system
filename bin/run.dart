@@ -566,6 +566,8 @@ update([bool shouldScheduleUpdate = true]) async {
       procNode = link.addNode("/proc", {
         r"$name": "Processes"
       });
+
+      procNode.serializable = false;
     }
 
     procNode.children.keys.where((x) {
@@ -581,6 +583,7 @@ update([bool shouldScheduleUpdate = true]) async {
         var cmd = await getProcessCommand(pid);
 
         node = link.addNode("/proc/${p}", {
+          r"$name": p,
           "command": {
             r"$name": "Command",
             r"$type": "string",
