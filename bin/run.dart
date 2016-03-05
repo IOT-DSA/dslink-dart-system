@@ -628,9 +628,7 @@ class DiagnosticsModeNode extends SimpleNode {
       enableDsaDiagnosticMode = true;
     } else {
       try {
-        link["/proc"].children.keys.map((x) {
-          return "/proc/${x}";
-        }).toList().forEach(link.removeNode);
+        link.removeNode("/proc");
       } catch (e) {}
 
       lastPidSet.clear();
