@@ -21,7 +21,11 @@ Future<String> findExecutable(String name) async {
 
   for (var p in paths) {
     if (Platform.environment.containsKey("HOME")) {
-      p = p.replaceAll("~/", Platform.environment["HOME"]);
+      var home = Platform.environment["HOME"];
+      if (!home.endsWith("/")) {
+        home += "/";
+      }
+      p = p.replaceAll("~/", home);
     }
 
     var dir = new Directory(pathlib.normalize(p));
