@@ -212,6 +212,10 @@ main(List<String> args) async {
     };
   }
 
+  NODES["Network_Interfaces"] = {
+    r"$name": "Network Intefaces"
+  };
+
   if (await hasBattery()) {
     NODES["Battery_Level"] = {
       r"$name": "Battery Level",
@@ -448,6 +452,8 @@ SimpleNode processCountNode = link["/Processes"];
 SimpleNode batteryLevelNode = link["/Battery_Level"];
 SimpleNode systemTimeNode = link["/System_Time"];
 SimpleNode openFilesNode = link["/Open_Files"];
+SimpleNode networkInterfacesNode = link["/Network_Interfaces"];
+
 Map<String, SimpleNode> fanNodes = {};
 
 update([bool shouldScheduleUpdate = true]) async {
@@ -523,6 +529,36 @@ update([bool shouldScheduleUpdate = true]) async {
           speed.updateValue(stats[node.configs[r"$name"]]["Speed"]);
         }
       }
+    }
+
+    try {
+      var interfaces = await NetworkInterface.list(
+        includeLinkLocal: true,
+        includeLoopback: true
+      );
+
+      var names = interfaces.map((x) => x.name).toList();
+
+      for (String name in networkInterfacesNode.children.keys.where((x) => !names.contains(x))) {
+        link.removeNode("${networkInterfacesNode.path}/${name}");
+      }
+
+      for (NetworkInterface interface in interfaces) {
+        var name = interface.name;
+
+        var p = "${networkInterfacesNode.path}/${name}";
+        var node = link.getNode(p);
+        if (node == null) {
+          node = link.addNode(p, {
+            r"$name": name,
+            r"$type": "string"
+          });
+        }
+
+        node.updateValue(interface.addresses.map((x) => x.address).join(","));
+      }
+    } catch (e, stack) {
+      logger.warning("Error while fetching the network interfaces.", e, stack);
     }
   } catch (e, stack) {
     logger.warning("Error in statistic updater.", e, stack);
