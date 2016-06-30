@@ -1,6 +1,7 @@
 import "dart:async";
 import "dart:convert";
 import "dart:io";
+import "dart:typed_data";
 
 import "package:dslink/dslink.dart";
 import "package:dslink/nodes.dart";
@@ -9,6 +10,12 @@ import "package:dslink/utils.dart";
 import "package:dslink_system/utils.dart";
 import "package:dslink_system/io.dart";
 import "package:args/args.dart";
+
+const Map<String, String> iconFileNames = const <String, String>{
+  "system/platform/macos": "Mac.png",
+  "system/platform/linux": "Linux.png",
+  "system/platform/windows": "Windows.png"
+};
 
 LinkProvider link;
 
@@ -359,6 +366,28 @@ main(List<String> args) async {
 
   link.configure(argp: argp);
   link.init();
+
+  SimpleNodeProvider np = link.provider;
+
+  np.setIconResolver((String path) async {
+    if (iconFileNames.containsKey(path)) {
+      var fileName = iconFileNames[path];
+      var file = new File(Platform.script.resolve("../data/${fileName}").toFilePath());
+      if (await file.exists()) {
+        Uint8List data = await file.readAsBytes();
+        return data.buffer.asByteData(
+          data.offsetInBytes,
+          data.lengthInBytes
+        );
+      }
+    }
+
+    return null;
+  });
+
+  if (iconFileNames.containsKey("system/platform/${Platform.operatingSystem.toLowerCase()}")) {
+    link.getNode("/").attributes["@icon"] = "system/platform/${Platform.operatingSystem.toLowerCase()}";
+  }
 
   for (var key in NODES.keys) {
     if (key == "Poll_Rate") {
