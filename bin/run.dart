@@ -364,7 +364,13 @@ main(List<String> args) async {
     valueHelp: "true/false",
     defaultsTo: "true");
 
-  link.configure(argp: argp);
+  String baseDir = Platform.script.resolve("..").toFilePath();
+  
+  link.configure(argp: argp, optionsHandler: (ArgResults res) {
+    if (res["base-path"] is String) {
+      baseDir = res["base-path"];
+    }
+  });
   link.init();
 
   SimpleNodeProvider np = link.provider;
@@ -372,7 +378,7 @@ main(List<String> args) async {
   np.setIconResolver((String path) async {
     if (iconFileNames.containsKey(path)) {
       var fileName = iconFileNames[path];
-      var file = new File(Platform.script.resolve("../data/${fileName}").toFilePath());
+      var file = new File("${baseDir}/data/${fileName}");
       if (await file.exists()) {
         Uint8List data = await file.readAsBytes();
         return data.buffer.asByteData(
