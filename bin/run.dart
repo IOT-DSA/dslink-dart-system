@@ -278,10 +278,7 @@ main(List<String> args) async {
           logger.finest(out);
         });
 
-        return {
-          "output": result.output,
-          "exitCode": result.exitCode
-        };
+        return [[result.output, result.exitCode]];
       }),
       "runAppleScript": addAction((Map<String, dynamic> params) async {
         var result = await exec(
@@ -290,9 +287,7 @@ main(List<String> args) async {
           writeToBuffer: true
         );
 
-        return {
-          "output": result.output
-        };
+        return [[result.output]];
       }),
       "executeCommandStream": addAction((Map<String, dynamic> params) async {
         var cmd = params["command"];
@@ -313,10 +308,10 @@ main(List<String> args) async {
             .transform(const LineSplitter())
             .listen((line) {
             if (!controller.isClosed) {
-              controller.add({
-                "type": "stdout",
-                "value": line
-              });
+              controller.add([[
+                "stdout",
+                line
+              ]]);
             }
           });
 
@@ -325,19 +320,19 @@ main(List<String> args) async {
             .transform(const LineSplitter())
             .listen((line) {
             if (!controller.isClosed) {
-              controller.add({
-                "type": "stderr",
-                "value": line
-              });
+              controller.add([[
+                "stderr",
+                line
+              ]]);
             }
           });
 
           proc.exitCode.then((code) {
             if (!controller.isClosed) {
-              controller.add({
-                "type": "exit",
-                "value": code
-              });
+              controller.add([[
+                "exit",
+                code
+              ]]);
             }
             controller.close();
           });
@@ -365,7 +360,7 @@ main(List<String> args) async {
     defaultsTo: "true");
 
   String baseDir = Platform.script.resolve("..").toFilePath();
-  
+
   link.configure(argp: argp, optionsHandler: (ArgResults res) {
     if (res["base-path"] is String) {
       baseDir = res["base-path"];
