@@ -660,6 +660,12 @@ update([bool shouldScheduleUpdate = true]) async {
             r"$type": "number",
             "@unit": "mb",
             "?value": 0.0
+          },
+          "filesOpen": {
+            r"$name": "Open Files",
+            r"$type": "number",
+            "@unit": "file descriptors",
+            "?value": 0
           }
         });
 
@@ -668,6 +674,7 @@ update([bool shouldScheduleUpdate = true]) async {
 
       SimpleNode cmdNode = link["/proc/${p}/command"];
       SimpleNode memoryNode = link["/proc/${p}/memory"];
+      SimpleNode openFilesNode = link["/proc/${p}/filesOpen"];
 
       if (cmdNode != null && cmdNode.hasSubscriber) {
         cmdNode.updateValue(await getProcessCommand(pid));
@@ -676,6 +683,11 @@ update([bool shouldScheduleUpdate = true]) async {
       if (memoryNode != null && memoryNode.hasSubscriber) {
         var usage = await getProcessMemoryUsage(pid);
         memoryNode.updateValue(usage / 1024 / 1024);
+      }
+
+      if (openFilesNode != null && openFilesNode.hasSubscriber) {
+        var files = await getProcessOpenFiles(pid);
+        openFilesNode.updateValue(files);
       }
     }
 
