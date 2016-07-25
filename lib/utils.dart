@@ -884,3 +884,13 @@ Future<int> getProcessMemoryUsage(int pid) async {
 
   return -1;
 }
+
+Future<int> getProcessOpenFiles(int pid) async {
+  try {
+    var dir = new Directory("/proc/${pid}/fd");
+    return (await dir.list()).length;
+  } catch (e) {
+  }
+
+  return -1;
+}
