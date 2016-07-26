@@ -886,9 +886,13 @@ Future<int> getProcessMemoryUsage(int pid) async {
 }
 
 Future<int> getProcessOpenFiles(int pid) async {
+  if (Platform.isMacOS) {
+    return -1;
+  }
+
   try {
     var dir = new Directory("/proc/${pid}/fd");
-    return (await dir.list()).length;
+    return await dir.list(followLinks: false).length;
   } catch (e) {
   }
 
