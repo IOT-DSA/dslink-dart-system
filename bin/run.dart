@@ -134,7 +134,7 @@ main(List<String> args) async {
       "?value": Platform.localHostname
     },
     "Execute_Command": {
-      r"$invokable": "write",
+      r"$invokable": "config",
       r"$is": "executeCommand",
       r"$name": "Execute Command",
       r"$params": [
@@ -157,7 +157,7 @@ main(List<String> args) async {
       ]
     },
     "Execute_Command_Stream": {
-      r"$invokable": "write",
+      r"$invokable": "config",
       r"$is": "executeCommandStream",
       r"$name": "Execute Command Stream",
       r"$result": "stream",
@@ -235,7 +235,7 @@ main(List<String> args) async {
     NODES["Run_AppleScript"] = {
       r"$is": "runAppleScript",
       r"$name": "Run AppleScript",
-      r"$invokable": "write",
+      r"$invokable": "config",
       r"$params": [
         {
           "name": "script",
