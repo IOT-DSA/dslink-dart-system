@@ -526,6 +526,12 @@ Future<String> getOperatingSystemVersion() async {
         }
         return "Linux ${result.stdout.toString().trim()}";
       }
+    } else if (Platform.isWindows) {
+      var result = await getWMICString("OS get Caption");
+      if (result == null) {
+        return "Unknown";
+      }
+      return result;
     }
   } catch (e) {}
 
@@ -591,7 +597,22 @@ num convertBytesToMegabytes(num bytes) {
   return (bytes / 1024) / 1024;
 }
 
-Future<int> getWMICNumber(String query) async {
+Future<String> getWMICString(String query) async {
+  try {
+    var result = await Process.run("wmic", query.split(" "));
+    var out = result.stdout.toString()
+      .split("\n")
+      .skip(1)
+      .join("\n")
+      .trim();
+
+    return out;
+  } catch (e) {
+    return null;
+  }
+}
+
+Future<num> getWMICNumber(String query) async {
   try {
     var result = await Process.run("wmic", query.split(" "));
     var lines = result.stdout
@@ -599,7 +620,7 @@ Future<int> getWMICNumber(String query) async {
       .where((String x) => x.isNotEmpty)
       .skip(1)
       .toList();
-    return int.parse(lines[0]);
+    return num.parse(lines[0]);
   } catch (e) {
     return 0;
   }
@@ -668,6 +689,8 @@ Future<bool> doesSupportModel() async {
       return await new Directory("/sys/devices/virtual/dmi/id").exists();
     } else if (Platform.isAndroid) {
       return true;
+    } else if (Platform.isWindows) {
+      return true;
     }
   } catch (e) {}
   return false;
@@ -688,6 +711,12 @@ Future<String> getHardwareModel() async {
     } else if (Platform.isAndroid) {
       var result = await Process.run("getprop", const ["ro.product.display"]);
       return result.stdout.toString().trim();
+    } else if (Platform.isWindows) {
+      var hw = await getWMICString("CPU get Name");
+
+      if (hw != null) {
+        return hw;
+      }
     }
   } catch (e) {
   }
@@ -897,4 +926,56 @@ Future<int> getProcessOpenFiles(int pid) async {
   }
 
   return -1;
+}
+
+Future<List<Map<String, dynamic>>> dumpWmicQuery(String section) async {
+  var args = [];
+  args.addAll(section.split(" "));
+  args.addAll([
+    "GET",
+    "/format:list"
+  ]);
+
+  var result = await Process.run(
+    "wmic",
+    args
+  );
+
+  var list = [];
+  var sections = result.stdout.toString().split("\n\n");
+  var current = {};
+
+  for (String section in sections) {
+    for (String line in section.split("\n")) {
+      if (!line.contains("=")) {
+        continue;
+      }
+
+      String key = line.substring(0, line.indexOf("="));
+
+      if (current.containsKey(key)) {
+        list.add(current);
+        current = {};
+      }
+
+      var value = line.substring(line.indexOf("=") + 1).trim();
+
+      try {
+        value = num.parse(value);
+      } catch (e) {}
+
+      if (value == "TRUE" || value == "FALSE") {
+        value = value == "TRUE";
+      }
+
+      current[key] = value;
+    }
+
+    if (current.isNotEmpty) {
+      list.add(current);
+      current = {};
+    }
+  }
+
+  return list;
 }

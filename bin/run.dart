@@ -51,8 +51,8 @@ main(List<String> args) async {
     "Platform": {
       r"$type": "string",
       "?value": PLATFORMS.containsKey(Platform.operatingSystem) ?
-      PLATFORMS[Platform.operatingSystem] :
-      Platform.operatingSystem
+        PLATFORMS[Platform.operatingSystem] :
+        Platform.operatingSystem
     },
     "Processor_Count": {
       r"$name": "Processor Count",
@@ -254,6 +254,22 @@ main(List<String> args) async {
     };
   }
 
+  if (Platform.isWindows) {
+    NODES["Read_WMIC"] = {
+      r"$is": "readWmicData",
+      r"$name": "Read WMIC Data",
+      r"$invokable": "config",
+      r"$params": [
+        {
+          "name": "query",
+          "type": "string",
+          "default": "OS"
+        }
+      ],
+      r"$result": "table"
+    };
+  }
+
   NODES["Diagnostics_Mode"] = {
     r"$is": "diagnosticsMode",
     r"$name": "Diagnostics Mode",
@@ -340,6 +356,25 @@ main(List<String> args) async {
 
         return controller.stream;
       }),
+      "readWmicData": (String path) {
+        return new SimpleActionNode(path, (Map<String, dynamic> m) async* {
+          var query = m["query"].toString();
+          var data = await dumpWmicQuery(query);
+
+          if (data.isNotEmpty) {
+            var m = data.first.keys.toList();
+
+            yield new TableColumns(m
+              .map((x) => new TableColumn(x, "dynamic"))
+              .toList()
+            );
+
+            for (var x in data) {
+              yield [x.values.toList()];
+            }
+          }
+        });
+      },
       "diagnosticsMode": (String path) {
         return new DiagnosticsModeNode(path);
       }
@@ -400,7 +435,8 @@ main(List<String> args) async {
     }
 
     link.removeNode("/${key}");
-    link.addNode("/${key}", NODES[key]);
+    SimpleNode x = link.addNode("/${key}", NODES[key]);
+    x.serializable = false;
   }
 
   await getMemSizeBytes();
