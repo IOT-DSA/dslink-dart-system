@@ -190,7 +190,7 @@ Future<double> getCpuUsage() async {
 
     return a + b;
   } else if (Platform.isWindows) {
-    return (await getWMICNumber("CPU get LoadPercentage")).toDouble();
+    return (await getWmicNumber("CPU get LoadPercentage")).toDouble();
   }
 
   return 0.0;
@@ -287,7 +287,7 @@ Future<num> getFreeMemory() async {
 
     return ((free + spec) * pageSize);
   } else if (Platform.isWindows) {
-    return await getWMICNumber("OS get FreePhysicalMemory") * 1024; // KB => Bytes
+    return await getWmicNumber("OS get FreePhysicalMemory") * 1024; // KB => Bytes
   }
 
   return 0;
@@ -302,6 +302,11 @@ Future<String> getSystemArchitecture() async {
   if (Platform.isAndroid) {
     var result = await Process.run("getprop", const ["ro.product.cpu.abi"]);
     return result.stdout.toString().trim();
+  }
+
+  if (Platform.isWindows) {
+    var hw = await getWmicString("OS get OSArchitecture");
+    return hw.toString().trim();
   }
 
   try {
@@ -365,7 +370,7 @@ Future<bool> hasBattery() async {
 
       return true;
     } else if (Platform.isWindows) {
-      var result = await getWMICNumber("PATH Win32_Battery Get Availability");
+      var result = await getWmicNumber("PATH Win32_Battery Get Availability");
       return result == 3;
     } else {
       return false;
@@ -385,7 +390,7 @@ Future<num> getBatteryPercentage() async {
 
       return num.parse(PERCENTAGE_REGEX.firstMatch(result.stdout).group(1));
     } else if (Platform.isWindows) {
-      return await getWMICNumber("path Win32_Battery Get EstimatedChargeRemaining");
+      return await getWmicNumber("path Win32_Battery Get EstimatedChargeRemaining");
     } else {
       return 0;
     }
@@ -434,7 +439,7 @@ Future<int> getMemSizeBytes() async {
       _memSizeBytes = (num.parse(partial) * 1024).toInt();
     }
   } else {
-    _memSizeBytes = await getWMICNumber("ComputerSystem get TotalPhysicalMemory");
+    _memSizeBytes = await getWmicNumber("ComputerSystem get TotalPhysicalMemory");
   }
 
   totalMemoryMegabytes = _memSizeBytes / 1024 / 1024;
@@ -490,8 +495,8 @@ Future<bool> doesSupportCPUTemperature() async {
   }
 
   if (Platform.isWindows) {
-    var result = await getWMICNumber("path Win32_TemperatureProbe Get Availability");
-    return _supportsCpuTemperature = (result == 3);
+    var result = await dumpWmicQuery("path Win32_TemperatureProbe");
+    return _supportsCpuTemperature = result.isNotEmpty;
   }
 
   return _supportsCpuTemperature = false;
@@ -527,7 +532,7 @@ Future<String> getOperatingSystemVersion() async {
         return "Linux ${result.stdout.toString().trim()}";
       }
     } else if (Platform.isWindows) {
-      var result = await getWMICString("OS get Caption");
+      var result = await getWmicString("OS get Caption");
       if (result == null) {
         return "Unknown";
       }
@@ -587,7 +592,21 @@ Future<num> getCpuTemp() async {
   }
 
   if (Platform.isWindows) {
-    return await getWMICNumber("path Win32_TemperatureProbe Get CurrentReading");
+    var result = await dumpWmicQuery(
+      "path Win32_PerfFormattedData_Counters_ThermalZoneInformation"
+    );
+
+    if (result.isNotEmpty) {
+      var out = 0.0;
+
+      for (var m in result) {
+        var x = m["Temperature"] is num ? m["Temperature"] : 0.0;
+        x = (x / 10.0);
+        out += x;
+      }
+
+      return out / result.length;
+    }
   }
 
   return 0.0;
@@ -597,7 +616,7 @@ num convertBytesToMegabytes(num bytes) {
   return (bytes / 1024) / 1024;
 }
 
-Future<String> getWMICString(String query) async {
+Future<String> getWmicString(String query) async {
   try {
     var result = await Process.run("wmic", query.split(" "));
     var out = result.stdout.toString()
@@ -612,7 +631,7 @@ Future<String> getWMICString(String query) async {
   }
 }
 
-Future<num> getWMICNumber(String query) async {
+Future<num> getWmicNumber(String query) async {
   try {
     var result = await Process.run("wmic", query.split(" "));
     var lines = result.stdout
@@ -712,7 +731,7 @@ Future<String> getHardwareModel() async {
       var result = await Process.run("getprop", const ["ro.product.display"]);
       return result.stdout.toString().trim();
     } else if (Platform.isWindows) {
-      var hw = await getWMICString("CPU get Name");
+      var hw = await getWmicString("CPU get Name");
 
       if (hw != null) {
         return hw;

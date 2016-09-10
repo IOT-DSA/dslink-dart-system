@@ -421,8 +421,11 @@ main(List<String> args) async {
     return null;
   });
 
-  if (iconFileNames.containsKey("system/platform/${Platform.operatingSystem.toLowerCase()}")) {
-    link.getNode("/").attributes["@icon"] = "system/platform/${Platform.operatingSystem.toLowerCase()}";
+  if (iconFileNames.containsKey(
+    "system/platform/${Platform.operatingSystem.toLowerCase()}"
+  )) {
+    link.getNode("/").attributes["@icon"] =
+      "system/platform/${Platform.operatingSystem.toLowerCase()}";
   }
 
   for (var key in NODES.keys) {
