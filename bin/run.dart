@@ -608,7 +608,7 @@ update([bool shouldScheduleUpdate = true]) async {
 
       var names = interfaces.map((x) => x.name).toList();
 
-      for (String name in networkInterfacesNode.children.keys.where((x) => !names.contains(x))) {
+      for (String name in networkInterfacesNode.children.keys.where((x) => !names.contains(x)).toList()) {
         link.removeNode("${networkInterfacesNode.path}/${name}");
       }
 
