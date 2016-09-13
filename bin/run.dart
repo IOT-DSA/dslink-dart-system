@@ -48,27 +48,56 @@ main(List<String> args) async {
   };
 
   final Map<String, dynamic> NODES = {
+    //* @Node Platform
+    //* @Parent root
+    //*
+    //* Operating system the link is running on.
+    //* @Value string
     "Platform": {
       r"$type": "string",
       "?value": PLATFORMS.containsKey(Platform.operatingSystem) ?
         PLATFORMS[Platform.operatingSystem] :
         Platform.operatingSystem
     },
+    //* @Node Processor_Count
+    //* @Parent root
+    //*
+    //* Number of processors the system has.
+    //* @Value number
     "Processor_Count": {
       r"$name": "Processor Count",
       r"$type": "number",
       "?value": Platform.numberOfProcessors
     },
+    //* @Node Processes
+    //* @Parent root
+    //*
+    //* Number of processes currently running on the operating system.
     "Processes": {
       r"$name": "Processes",
       r"$type": "number",
       "?value": 0
     },
+    //* @Node Operating_System
+    //* @Parent root
+    //*
+    //* Full version of the operating system.
+    //* @Value string
     "Operating_System": {
       r"$name": "Operating System",
       r"$type": "string",
       "?value": await getOperatingSystemVersion()
     },
+    //* @Node Poll_Rate
+    //* @Parent root
+    //*
+    //* Frequency to update system values.
+    //*
+    //* Poll Rate is how often the system should be polled for updates. Only
+    //* values which have a subscription will be updated. Default poll rate
+    //* is in seconds.
+    //*
+    //* @Value number write
     "Poll_Rate": {
       r"$name": "Poll Rate",
       r"$type": "number",
@@ -76,63 +105,138 @@ main(List<String> args) async {
       "?value": Platform.numberOfProcessors == 1 ? 3 : 1,
       "@unit": "seconds"
     },
+    //* @Node CPU_Usage
+    //* @Parent root
+    //*
+    //* System CPU Usage percentage.
+    //* @Value number
     "CPU_Usage": {
       r"$name": "CPU Usage",
       r"$type": "number",
       "@unit": "%"
     },
+    //* @Node Memory_Usage
+    //* @Parent root
+    //*
+    //* System Memory Usage percentage.
+    //* @Value number
     "Memory_Usage": {
       r"$name": "Memory Usage",
       r"$type": "number",
       "@unit": "%"
     },
+    //* @Node Total_Memory
+    //* @Parent root
+    //*
+    //* Total MB of memory in the system.
     "Total_Memory": {
       r"$name": "Total Memory",
       r"$type": "number",
       "@unit": "mb"
     },
+    //* @Node System_Time
+    //* @Parent root
+    //*
+    //* Current Date/Time reported by the system.
+    //* @Value string
     "System_Time": {
       r"$name": "System Time",
       r"$type": "string"
     },
+    //* @Node Free_Memory
+    //* @Parent root
+    //*
+    //* Total MB of unused memory in the system.
+    //* @Value number
     "Free_Memory": {
       r"$name": "Free Memory",
       r"$type": "number",
       "@unit": "mb"
     },
+    //* @Node Used_Memory
+    //* @Parent root
+    //*
+    //* Total MB of used memory in the system.
+    //* @Value number
     "Used_Memory": {
       r"$name": "Used Memory",
       r"$type": "number",
       "@unit": "mb"
     },
+    //* @Node Disk_Usage
+    //* @Parent root
+    //*
+    //* Percentage of used disk space.
+    //* @Value number
     "Disk_Usage": {
       r"$name": "Disk Usage",
       r"$type": "number",
       "@unit": "%"
     },
+    //* @Node Total_Disk_Space
+    //* @Parent root
+    //*
+    //* Total MB of disk space.
+    //* @Value number
     "Total_Disk_Space": {
       r"$name": "Total Disk Space",
       r"$type": "number",
       "@unit": "mb"
     },
+    //* @Node Used_Disk_Space
+    //* @Parent root
+    //*
+    //* Total MB of used disk space.
+    //* @Value number
     "Used_Disk_Space": {
       r"$name": "Used Disk Space",
       r"$type": "number",
       "@unit": "mb"
     },
+    //* @Node Free_Disk_Space
+    //* @Parent root
+    //*
+    //* Total MB of free disk space.
+    //* @Value number
     "Free_Disk_Space": {
       r"$name": "Free Disk Space",
       r"$type": "number",
       "@unit": "mb"
     },
+    //* @Node Architecture
+    //* @Parent root
+    //*
+    //* System processor architecture type. (eg: x386, xamd64)
+    //* @Value string
     "Architecture": {
       r"$type": "string",
       "?value": await getSystemArchitecture()
     },
+    //* @Node Hostname
+    //* @Parent root
+    //*
+    //* System's host name
+    //* @Value string
     "Hostname": {
       r"$type": "string",
       "?value": Platform.localHostname
     },
+    //* @Action Execute_Command
+    //* @Is executeCommand
+    //* @Parent root
+    //*
+    //* Attempts to execute the specified command in the system's CLI.
+    //*
+    //* Execute Command will try to execute the specified command in the
+    //* command line interface of the system. It returns the output of the
+    //* command and the exit code it returned.
+    //*
+    //* @Param command string The command to try and run.
+    //*
+    //* @Return values
+    //* @Column output string Standard out and standard error output text from
+    //* running the command.
+    //* @Column exitCode number The exit code returned by running the command.
     "Execute_Command": {
       r"$invokable": "config",
       r"$is": "executeCommand",
@@ -156,6 +260,22 @@ main(List<String> args) async {
         }
       ]
     },
+    //* @Action Execute_Command_Stream
+    //* @Parent root
+    //* @Is executeCommandStream
+    //*
+    //* Attempts to execute the specified command returning live data as it executes.
+    //*
+    //* Execute Command Stream will try to run the specified command and return
+    //* a live view of the standard output and standard error from the command as
+    //* it runs. This is beneficial for a long running command with progress
+    //* updates as it executes.
+    //*
+    //* @Param command string The command to try and execute in the system's CLI.
+    //*
+    //* @Return stream
+    //* @Column type string Output type, such as stderr or stdout
+    //* @Column value dynamic The output from the command itself.
     "Execute_Command_Stream": {
       r"$invokable": "config",
       r"$is": "executeCommandStream",
@@ -181,6 +301,16 @@ main(List<String> args) async {
   };
 
   if (await doesSupportCPUTemperature()) {
+    //* @Node CPU_Temperature
+    //* @Parent root
+    //*
+    //* If supported, displays the system's CPU temperature.
+    //*
+    //* The system's CPU temperature if it is supported. If the system does
+    //* not support this feature, the node will not be available. Default
+    //* unit is measured in °C
+    //*
+    //* @Value number
     NODES["CPU_Temperature"] = {
       r"$name": "CPU Temperature",
       "@unit": "°C",
@@ -189,6 +319,17 @@ main(List<String> args) async {
   }
 
   if (await doesSupportHardwareIdentifier()) {
+    //* @Node Hardware_Identifier
+    //* @Parent root
+    //*
+    //* If supported, displays the system's hardware identifier.
+    //*
+    //* The systems hardware identifier if it is supported. This value may
+    //* be derived from different locations on different platforms. If the
+    //* functionality is not supported on the system, the node will not be
+    //* available.
+    //*
+    //* @Value string
     NODES["Hardware_Identifier"] = {
       r"$name": "Hardware Identifier",
       r"$type": "string",
@@ -197,6 +338,15 @@ main(List<String> args) async {
   }
 
   if (await doesSupportModel()) {
+    //* @Node Model
+    //* @Parent root
+    //*
+    //* If supported, displays the systems model name/number.
+    //*
+    //* The system model name/number if supported by the system. If the
+    //* functionality is not supported this node will not be available.
+    //*
+    //* @Value string
     NODES["Model"] = {
       r"$name": "Model",
       r"$type": "string",
@@ -205,6 +355,15 @@ main(List<String> args) async {
   }
 
   if (await doesSupportProcessorName()) {
+    //* @Node Processor_Model
+    //* @Parent root
+    //*
+    //* If supported, displays the system's processor model.
+    //*
+    //* The system's processor model name, if supported by the system. If the
+    //* functionality is not supported, this node will not be available.
+    //*
+    //* @Value string
     NODES["Processor_Model"] = {
       r"$name": "Processor Model",
       r"$type": "string",
@@ -213,17 +372,37 @@ main(List<String> args) async {
   }
 
   if (await doesSupportOpenFilesCount()) {
+    //* @Node Open_Files
+    //* @Parent root
+    //*
+    //* If supported, number of open files on the system.
+    //* @Value number
     NODES["Open_Files"] = {
       r"$name": "Open Files",
       r"$type": "number"
     };
   }
 
+  //* @Node Network_interfaces
+  //* @Parent root
+  //*
+  //* Collection of Network interfaces detected on the system.
   NODES["Network_Interfaces"] = {
     r"$name": "Network Intefaces"
   };
 
   if (await hasBattery()) {
+    //* @Node Battery_Level
+    //* @Parent root
+    //*
+    //* If supported, current battery level percentage.
+    //*
+    //* If detected, reports the battery percentage level of the system.
+    //* Because some systems report battery differently if the power is
+    //* connected, this node may not be available even if the system has an
+    //* internal battery.
+    //*
+    //* @Value number
     NODES["Battery_Level"] = {
       r"$name": "Battery Level",
       r"$type": "number",
@@ -232,6 +411,21 @@ main(List<String> args) async {
   }
 
   if (Platform.isMacOS) {
+    //* @Action Run_AppleScript
+    //* @Is runAppleScript
+    //* @Parent root
+    //*
+    //* On MacOS, run the specified apple script
+    //*
+    //* On MacOS systems, try to run the specified AppleScript. Returns the
+    //* standard output and standard error from running the script. If the
+    //* platform is not detected as being macOS, then this action will not
+    //* be available.
+    //*
+    //* @Param script string The text script to try and execute.
+    //*
+    //* @Return values
+    //* @Column output string Standard output and standard error results.
     NODES["Run_AppleScript"] = {
       r"$is": "runAppleScript",
       r"$name": "Run AppleScript",
@@ -255,6 +449,17 @@ main(List<String> args) async {
   }
 
   if (Platform.isWindows) {
+    //* @Action Read_WMIC
+    //* @Is readWmicData
+    //* @Parent root
+    //*
+    //* On Windows platforms, query WMIC for data.
+    //*
+    //* On Windows platform, return a formatted list of the query response
+    //* from WMIC. Number of columns in the return will vary depending on the
+    //* response from the query.
+    //*
+    //* @Return table
     NODES["Read_WMIC"] = {
       r"$is": "readWmicData",
       r"$name": "Read WMIC Data",
@@ -270,6 +475,16 @@ main(List<String> args) async {
     };
   }
 
+  //* @Node Diagnostics_Mode
+  //* @Is diagnosticsMode
+  //* @Parent root
+  //*
+  //* Enable/Disable diagnostic mode to monitor processes.
+  //*
+  //* Enabling Diagnostics Mode will add process monitoring for active DsLinks
+  //* connected to the DgLux instance.
+  //*
+  //* @Value bool[disabled,enabled] write
   NODES["Diagnostics_Mode"] = {
     r"$is": "diagnosticsMode",
     r"$name": "Diagnostics Mode",
@@ -480,8 +695,18 @@ main(List<String> args) async {
     var stats = await getFanStats();
     var fans = {};
     for (var key in stats.keys) {
+      //* @Node
+      //* @MetaType FanStat
+      //* @Parent Fans
+      //*
+      //* A fan detected within the system.
       fans[key.replaceAll(" ", "_")] = {
         r"$name": key,
+        //* @Node Speed
+        //* @Parent FanStat
+        //*
+        //* Speed of the detected fan in RPM.
+        //* @Value number
         "Speed": {
           r"$type": "number",
           "?value": stats[key]["Speed"],
@@ -491,6 +716,10 @@ main(List<String> args) async {
     }
 
     if (fans.isNotEmpty) {
+      //* @Node Fans
+      //* @Parent root
+      //*
+      //* If supported, collection of fans detected on the system.
       SimpleNode fansNode = link.addNode("/Fans", fans);
       fansNode.serializable = false;
 
@@ -615,6 +844,16 @@ update([bool shouldScheduleUpdate = true]) async {
       for (NetworkInterface interface in interfaces) {
         var name = interface.name;
 
+        //* @Node
+        //* @MetaType NetworkInterface
+        //* @Parent Network_Interfaces
+        //*
+        //* Network Interface detected on the system.
+        //*
+        //* A network interface may be real or virtual. The value is a comma
+        //* separated list of all addresses bound to that interface.
+        //*
+        //* @Value string
         var p = "${networkInterfacesNode.path}/${name}";
         var node = link.getNode(p);
         if (node == null) {
@@ -666,6 +905,10 @@ update([bool shouldScheduleUpdate = true]) async {
       }
     }
 
+    //* @Node proc
+    //* @Parent root
+    //*
+    //* Collection of DgLux processes if Diagnostics is enabled.
     SimpleNode procNode = link["/proc"];
     if (procNode == null) {
       procNode = link.addNode("/proc", {
@@ -683,23 +926,43 @@ update([bool shouldScheduleUpdate = true]) async {
 
     for (var pid in pidmap.keys) {
       String p = pidmap[pid];
+      //* @Node
+      //* @MetaType procProcess
+      //* @Parent proc
+      //*
+      //* DgLux process and collection of its related values.
       SimpleNode node = link["/proc/${p}"];
       if (node == null) {
         var cmd = await getProcessCommand(pid);
 
         node = link.addNode("/proc/${p}", {
           r"$name": p,
+          //* @Node command
+          //* @Parent procProcess
+          //*
+          //* Command which started the process.
+          //* @Value string
           "command": {
             r"$name": "Command",
             r"$type": "string",
             "?value": cmd
           },
+          //* @Node memory
+          //* @Parent procProcess
+          //*
+          //* Memory usage by the process, in MB.
+          //* @Value number
           "memory": {
             r"$name": "Memory Usage",
             r"$type": "number",
             "@unit": "mb",
             "?value": 0.0
           },
+          //* @Node filesOpen
+          //* @Parent procProcess
+          //*
+          //* Number of open files by the process.
+          //* @Value number
           "filesOpen": {
             r"$name": "Open Files",
             r"$type": "number",
