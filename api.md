@@ -1,5 +1,9 @@
  <pre>
 -[root](#root)
+ |-[@Execute_Command(command)](#execute_command)
+ |-[@Execute_Command_Stream(command)](#execute_command_stream)
+ |-[@Run_AppleScript(script)](#run_applescript)
+ |-[@Read_WMIC()](#read_wmic)
  |-[Platform](#platform) - string
  |-[Processor_Count](#processor_count) - number
  |-[Processes](#processes)
@@ -17,8 +21,6 @@
  |-[Free_Disk_Space](#free_disk_space) - number
  |-[Architecture](#architecture) - string
  |-[Hostname](#hostname) - string
- |-[@Execute_Command(command)](#execute_command)
- |-[@Execute_Command_Stream(command)](#execute_command_stream)
  |-[CPU_Temperature](#cpu_temperature) - number
  |-[Hardware_Identifier](#hardware_identifier) - string
  |-[Model](#model) - string
@@ -27,8 +29,6 @@
  |-[Network_Interfaces](#network_interfaces)
  | |-[NetworkInterface](#networkinterface) - string
  |-[Battery_Level](#battery_level) - number
- |-[@Run_AppleScript(script)](#run_applescript)
- |-[@Read_WMIC()](#read_wmic)
  |-[Diagnostics_Mode](#diagnostics_mode) - bool[disabled,enabled]
  |-[Fans](#fans)
  | |-[FanStat](#fanstat)
@@ -47,6 +47,101 @@
 Root node of the DsLink  
 
 Type: Node   
+
+---
+
+### Execute_Command  
+
+Attempts to execute the specified command in the system's CLI.  
+
+Type: Action   
+$is: executeCommand   
+Parent: [root](#root)  
+
+Description:  
+Execute Command will try to execute the specified command in the command line interface of the system. It returns the output of the command and the exit code it returned.  
+
+Params:  
+
+Name | Type | Description
+--- | --- | ---
+command | `string` | The command to try and run.
+
+Return type: values   
+Columns:  
+
+Name | Type | Description
+--- | --- | ---
+output | `string` | Standard out and standard error output text from running the command. 
+exitCode | `number` | The exit code returned by running the command. 
+
+---
+
+### Execute_Command_Stream  
+
+Attempts to execute the specified command returning live data as it executes.  
+
+Type: Action   
+$is: executeCommandStream   
+Parent: [root](#root)  
+
+Description:  
+Execute Command Stream will try to run the specified command and return a live view of the standard output and standard error from the command as it runs. This is beneficial for a long running command with progress updates as it executes.  
+
+Params:  
+
+Name | Type | Description
+--- | --- | ---
+command | `string` | The command to try and execute in the system's CLI.
+
+Return type: stream   
+Columns:  
+
+Name | Type | Description
+--- | --- | ---
+type | `string` | Output type, such as stderr or stdout 
+value | `dynamic` | The output from the command itself. 
+
+---
+
+### Run_AppleScript  
+
+On MacOS, run the specified apple script  
+
+Type: Action   
+$is: runAppleScript   
+Parent: [root](#root)  
+
+Description:  
+On MacOS systems, try to run the specified AppleScript. Returns the standard output and standard error from running the script. If the platform is not detected as being macOS, then this action will not be available.  
+
+Params:  
+
+Name | Type | Description
+--- | --- | ---
+script | `string` | The text script to try and execute.
+
+Return type: values   
+Columns:  
+
+Name | Type | Description
+--- | --- | ---
+output | `string` | Standard output and standard error results. 
+
+---
+
+### Read_WMIC  
+
+On Windows platforms, query WMIC for data.  
+
+Type: Action   
+$is: readWmicData   
+Parent: [root](#root)  
+
+Description:  
+On Windows platform, return a formatted list of the query response from WMIC. Number of columns in the return will vary depending on the response from the query.  
+
+Return type: table   
 
 ---
 
@@ -237,60 +332,6 @@ Writable: `never`
 
 ---
 
-### Execute_Command  
-
-Attempts to execute the specified command in the system's CLI.  
-
-Type: Action   
-$is: executeCommand   
-Parent: [root](#root)  
-
-Description:  
-Execute Command will try to execute the specified command in the command line interface of the system. It returns the output of the command and the exit code it returned.  
-
-Params:  
-
-Name | Type | Description
---- | --- | ---
-command | `string` | The command to try and run.
-
-Return type: values   
-Columns:  
-
-Name | Type | Description
---- | --- | ---
-output | `string` | Standard out and standard error output text from running the command. 
-exitCode | `number` | The exit code returned by running the command. 
-
----
-
-### Execute_Command_Stream  
-
-Attempts to execute the specified command returning live data as it executes.  
-
-Type: Action   
-$is: executeCommandStream   
-Parent: [root](#root)  
-
-Description:  
-Execute Command Stream will try to run the specified command and return a live view of the standard output and standard error from the command as it runs. This is beneficial for a long running command with progress updates as it executes.  
-
-Params:  
-
-Name | Type | Description
---- | --- | ---
-command | `string` | The command to try and execute in the system's CLI.
-
-Return type: stream   
-Columns:  
-
-Name | Type | Description
---- | --- | ---
-type | `string` | Output type, such as stderr or stdout 
-value | `dynamic` | The output from the command itself. 
-
----
-
 ### CPU_Temperature  
 
 If supported, displays the system's CPU temperature.  
@@ -398,47 +439,6 @@ If detected, reports the battery percentage level of the system. Because some sy
 
 Value Type: `number`  
 Writable: `never`  
-
----
-
-### Run_AppleScript  
-
-On MacOS, run the specified apple script  
-
-Type: Action   
-$is: runAppleScript   
-Parent: [root](#root)  
-
-Description:  
-On MacOS systems, try to run the specified AppleScript. Returns the standard output and standard error from running the script. If the platform is not detected as being macOS, then this action will not be available.  
-
-Params:  
-
-Name | Type | Description
---- | --- | ---
-script | `string` | The text script to try and execute.
-
-Return type: values   
-Columns:  
-
-Name | Type | Description
---- | --- | ---
-output | `string` | Standard output and standard error results. 
-
----
-
-### Read_WMIC  
-
-On Windows platforms, query WMIC for data.  
-
-Type: Action   
-$is: readWmicData   
-Parent: [root](#root)  
-
-Description:  
-On Windows platform, return a formatted list of the query response from WMIC. Number of columns in the return will vary depending on the response from the query.  
-
-Return type: table   
 
 ---
 
