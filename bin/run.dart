@@ -383,7 +383,7 @@ main(List<String> args) async {
     };
   }
 
-  //* @Node Network_interfaces
+  //* @Node Network_Interfaces
   //* @Parent root
   //*
   //* Collection of Network interfaces detected on the system.
