@@ -388,7 +388,7 @@ main(List<String> args) async {
   //*
   //* Collection of Network interfaces detected on the system.
   NODES["Network_Interfaces"] = {
-    r"$name": "Network Intefaces"
+    r"$name": "Network Interfaces"
   };
 
   if (await hasBattery()) {
