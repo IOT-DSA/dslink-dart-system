@@ -22,10 +22,12 @@ LinkProvider link;
 bool secureMode = false;
 bool enableDsaDiagnosticMode = false;
 
+typedef SimpleNode Profile(String path);
+
 typedef Action(Map<String, dynamic> params);
 typedef ActionWithPath(Path path, Map<String, dynamic> params);
 
-addAction(handler, [bool isInsecure = false]) {
+Profile addAction(handler, [bool isInsecure = false]) {
   if (secureMode && isInsecure) {
     return (String path) {
       return new SimpleNode(path);
