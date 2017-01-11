@@ -46,6 +46,10 @@ Future<String> findExecutable(String name) async {
   return null;
 }
 
+Future<bool> isInSecureMode() async {
+  return await new File(".secureMode").exists() || await new File("../../.secureMode").exists();
+}
+
 Future<bool> fileExists(String path) async {
   return await new File(path).exists();
 }
