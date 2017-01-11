@@ -19,12 +19,19 @@ const Map<String, String> iconFileNames = const <String, String>{
 
 LinkProvider link;
 
+bool secureMode = false;
 bool enableDsaDiagnosticMode = false;
 
 typedef Action(Map<String, dynamic> params);
 typedef ActionWithPath(Path path, Map<String, dynamic> params);
 
-addAction(handler) {
+addAction(handler, [bool isInsecure = false]) {
+  if (secureMode && isInsecure) {
+    return (String path) {
+      return new SimpleNode(path);
+    };
+  }
+
   return (String path) {
     var p = new Path(path);
     return new SimpleActionNode(path, (params) {
@@ -40,6 +47,13 @@ addAction(handler) {
 }
 
 main(List<String> args) async {
+  try {
+    secureMode = await isInSecureMode();
+  } catch(e) {
+    print("Checking for secure mode failed, exiting System DSLink.");
+    exit(1);
+  }
+
   final Map<String, String> PLATFORMS = {
     "macos": "Mac",
     "linux": "Linux",
@@ -220,7 +234,13 @@ main(List<String> args) async {
     "Hostname": {
       r"$type": "string",
       "?value": Platform.localHostname
-    },
+    }
+  };
+
+  // insecure nodes are nodes that could in theory (but not likely in practice)
+  // be used through DSA to compromise a system.
+  // disabled by ./.secureMode or ../../.secureMode
+  final Map<String, dynamic> INSECURE_NODES = {
     //* @Action Execute_Command
     //* @Is executeCommand
     //* @Parent root
@@ -426,7 +446,7 @@ main(List<String> args) async {
     //*
     //* @Return values
     //* @Column output string Standard output and standard error results.
-    NODES["Run_AppleScript"] = {
+    INSECURE_NODES["Run_AppleScript"] = {
       r"$is": "runAppleScript",
       r"$name": "Run AppleScript",
       r"$invokable": "config",
@@ -460,7 +480,7 @@ main(List<String> args) async {
     //* response from the query.
     //*
     //* @Return table
-    NODES["Read_WMIC"] = {
+    INSECURE_NODES["Read_WMIC"] = {
       r"$is": "readWmicData",
       r"$name": "Read WMIC Data",
       r"$invokable": "config",
@@ -493,6 +513,11 @@ main(List<String> args) async {
     "?value": false
   };
 
+  // add secure mode nodes to NODES before initialization
+  if (!secureMode) {
+    NODES.addAll(INSECURE_NODES);
+  }
+
   link = new LinkProvider(
     args,
     "System-",
@@ -510,7 +535,7 @@ main(List<String> args) async {
         });
 
         return [[result.output, result.exitCode]];
-      }),
+      }, true),
       "runAppleScript": addAction((Map<String, dynamic> params) async {
         var result = await exec(
           "osascript",
@@ -519,7 +544,7 @@ main(List<String> args) async {
         );
 
         return [[result.output]];
-      }),
+      }, true),
       "executeCommandStream": addAction((Map<String, dynamic> params) async {
         var cmd = params["command"];
         Process process;
@@ -570,8 +595,12 @@ main(List<String> args) async {
         });
 
         return controller.stream;
-      }),
+      }, true),
       "readWmicData": (String path) {
+        if (secureMode) {
+          return new SimpleNode(path);
+        }
+
         return new SimpleActionNode(path, (Map<String, dynamic> m) async* {
           var query = m["query"].toString();
           var data = await dumpWmicQuery(query);
@@ -655,6 +684,14 @@ main(List<String> args) async {
     link.removeNode("/${key}");
     SimpleNode x = link.addNode("/${key}", NODES[key]);
     x.serializable = false;
+  }
+
+  // make sure secure mode nodes are always removed
+  // even though they wouldn't work, listing them may cause panic
+  if (secureMode) {
+    for (var key in INSECURE_NODES.keys) {
+      link.removeNode("/$key");
+    }
   }
 
   await getMemSizeBytes();
