@@ -4,7 +4,7 @@
   "description": "System DSLink",
   "main": "bin/run.dart",
   "engines": {
-    "dart": ">=1.9.0"
+    "dart": ">=1.15.0"
   },
   "getDependencies": [],
   "configs": {
