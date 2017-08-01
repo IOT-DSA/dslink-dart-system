@@ -1,6 +1,5 @@
 build/
 packages
-pubspec.lock
 .idea/
 docs/
 dartdoc-viewer/
@@ -13,6 +12,5 @@ out/
 .c9*
 .dslink.key
 nodes.json
-.packages
 .pids
 .rtm_stub
