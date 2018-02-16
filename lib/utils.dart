@@ -262,7 +262,6 @@ Future<num> getFreeMemory() async {
         lines = null;
         return num.parse(partial) * 1024; // KB => Bytes
       } catch (e) {
-        print(e);
         return 0;
       }
     }
@@ -578,19 +577,27 @@ Future<num> getCpuTemp() async {
       }
       List<String> lines = result.stdout.split("\n");
       String line = lines.firstWhere(
-        (x) => x.startsWith("Physical id 0:"),
+        (x) => x.startsWith("Physical id 0:") || x.startsWith("Package id 0:"),
           orElse: () => null
       );
-      if (line == null) {
-        return 0.0;
-      }
-      String x = line.substring("Physical id 0:".length).trim();
 
-      var deg = num.parse(x.split("°")[0]);
-      lines.clear();
-      lines = result = line = x = null;
-      return deg;
-    } catch (e) {
+      if (line != null) {
+        var x = line.split(":")[1].trim();
+        var deg = num.parse(x.split("°")[0]);
+        lines.clear();
+        lines = result = line = x = null;
+        return deg;
+      } else {
+        var temps = lines.where((line) => line.startsWith("Core ")).map((x) =>
+          num.parse(x.split(":")[1].split("°")[0].trim())
+        ).toList();
+
+	var avg = temps.reduce((a, b) => a + b) / temps.length;
+        lines.clear();
+        lines = result = null;
+        return avg;
+      }
+    } catch (e, stack) {
       return 0.0;
     }
   }

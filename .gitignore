@@ -14,3 +14,5 @@ out/
 nodes.json
 .pids
 .rtm_stub
+.packages
+
