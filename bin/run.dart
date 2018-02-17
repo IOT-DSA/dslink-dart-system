@@ -640,6 +640,18 @@ main(List<String> args) async {
     valueHelp: "true/false",
     defaultsTo: "true");
 
+  argp.addOption("linux_use_slow_cpu_usage", callback: (value) {
+    useOldLinuxCpuUsageCalculator = getInputBoolean(value);
+  }, help: "Use a very slow CPU usage calculation.",
+    valueHelp: "true/false",
+    defaultsTo: "false");
+
+  argp.addOption("log_statistic_exceptions", callback: (value) {
+    logAllExceptions = getInputBoolean(value);
+  }, help: "Enable logging of statistic exceptions.",
+    defaultsTo: "true",
+    valueHelp: "true/false");
+
   String baseDir = Platform.script.resolve("..").toFilePath();
 
   link.configure(argp: argp, optionsHandler: (ArgResults res) {
@@ -912,7 +924,9 @@ update([bool shouldScheduleUpdate = true]) async {
   }
 
   try {
-    if (enableDsaDiagnosticMode == true && pidTrackingFile == null && (Platform.isLinux || Platform.isMacOS)) {
+    if (enableDsaDiagnosticMode == true &&
+        pidTrackingFile == null &&
+        (Platform.isLinux || Platform.isMacOS)) {
       var tryPaths = [
         "../../.pids",
         ".pids"

@@ -6,10 +6,17 @@ import "dart:math";
 
 import "package:path/path.dart" as pathlib;
 
+import "package:dslink/utils.dart" as util;
+
 final RegExp PERCENTAGE_REGEX = new RegExp(r"([0-9\.]+)%\;");
-final bool useOldLinuxCpuUsageCalculator = false;
+final RegExp OSX_VERSION_REGEX = new RegExp(r"System Version: (.*)");
+final RegExp WHITESPACE = new RegExp(r"\t|\n| ");
+final RegExp ROOT_DEV_REGEX = new RegExp(r"root=([^ ]*)");
+
+bool useOldLinuxCpuUsageCalculator = false;
 bool useLinuxFreeCommand = true;
 bool offsetLinuxDiskCache = true;
+bool logAllExceptions = false;
 
 Future<String> findExecutable(String name) async {
   var paths = Platform.environment["PATH"].split(Platform.isWindows ? ";" : ":");
@@ -85,9 +92,9 @@ Future<Map<String, String>> parseVariableFile(String path) async {
 
 File procStatFile = new File("/proc/stat");
 
-num _prevTotal = 0;
-num _prevIdle = 0;
-num _prevLoad = 0;
+double _prevTotal = 0.0;
+double _prevIdle = 0.0;
+double _prevLoad = 0.0;
 
 onErrorNull(input) => null;
 
@@ -135,47 +142,50 @@ Future<double> getCpuUsage() async {
     } else {
       var content = await procStatFile.readAsString();
       var split = content.split(" ");
-      var d = [];
+      var numbers = <double>[];
       var idx = 0;
       var count = 0;
       while (count < 4) {
-        var t = num.parse(split[idx], onErrorNull);
-        if (t != null) {
+        var parsed = num.parse(split[idx], onErrorNull);
+        if (parsed != null) {
           count++;
-          d.add(t);
+          numbers.add(parsed.toDouble());
         }
         idx++;
       }
 
-      num idle = d[3];
-      num total = d[0] + d[1] + d[2];
-      num load = 0;
+      var idle = numbers[3];
+      var total = numbers[0] + numbers[1] + numbers[2];
+      var load = 0.0;
 
       if (_prevTotal != 0) {
-        var  p = ((total - _prevTotal) / ((total + idle - _prevTotal - _prevIdle)));
+        var  p = (total - _prevTotal) / ((total + idle - _prevTotal - _prevIdle));
         if (p == double.NAN) {
           p = 0.0;
         }
-        load = p * 100;
+        load = p * 100.0;
       }
 
       if (load == double.NAN) {
         load = 0.0;
       }
 
-      load = min(100, max(0, load));
+      load = min(100.0, max(0.0, load));
 
       _prevLoad = load;
       _prevTotal = total;
       _prevIdle = idle;
 
       split = content = null;
-      d.clear();
+      numbers.clear();
 
       return load;
     }
   } else if (Platform.isMacOS) {
-    var result = await Process.run("top", const ["-o", "cpu", "-l", "1", "-stats", "cpu"]);
+    var result = await Process.run("top", const [
+      "-o", "cpu", "-l", "1", "-stats", "cpu"
+    ]);
+
     List<String> lines = result.stdout.split("\n");
     var str = lines.firstWhere((x) => x.startsWith("CPU usage: "), orElse: () => null);
     if (str == null) {
@@ -245,7 +255,10 @@ Future<num> getFreeMemory() async {
 
           return bytes;
         }
-      } catch (e) {
+      } catch (e, stack) {
+        if (logAllExceptions) {
+          util.logger.warning("getFreeMemory", e, stack);
+        }
         return 0;
       }
     } else {
@@ -261,7 +274,10 @@ Future<num> getFreeMemory() async {
         lines.clear();
         lines = null;
         return num.parse(partial) * 1024; // KB => Bytes
-      } catch (e) {
+      } catch (e, stack) {
+        if (logAllExceptions) {
+          util.logger.warning("getFreeMemory", e, stack);
+        }
         return 0;
       }
     }
@@ -320,7 +336,10 @@ Future<String> getSystemArchitecture() async {
       var result = await Process.run("getprop", const ["ro.product.cpu.abi"]);
       return result.stdout.toString().trim();
     }
-  } catch (e) {
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getSystemArchitecture", e, stack);
+    }
   }
   return "Unknown";
 }
@@ -354,7 +373,10 @@ Future<int> getProcessCount() async {
       result = null;
       return len;
     }
-  } catch (e) {
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getProcessCount", e, stack);
+    }
     return 0;
   }
 }
@@ -378,7 +400,10 @@ Future<bool> hasBattery() async {
     } else {
       return false;
     }
-  } catch (e) {
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("hasBattery", e, stack);
+    }
     return false;
   }
 }
@@ -397,7 +422,10 @@ Future<num> getBatteryPercentage() async {
     } else {
       return 0;
     }
-  } catch (e) {
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getBatteryPercentage", e, stack);
+    }
     return 0;
   }
 }
@@ -473,7 +501,11 @@ Future<Map<String, Map<String, dynamic>>> getFanStats() async {
       lines.clear();
       return map;
     }
-  } catch (e) {}
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getFanStats", e, stack);
+    }
+  }
   return const {};
 }
 
@@ -541,12 +573,14 @@ Future<String> getOperatingSystemVersion() async {
       }
       return result;
     }
-  } catch (e) {}
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getOperatingSystemVersion", e, stack);
+    }
+  }
 
   return "Unknown";
 }
-
-RegExp OSX_VERSION_REGEX = new RegExp(r"System Version\: (.*)");
 
 bool _supportsCpuTemperature;
 
@@ -563,7 +597,10 @@ Future<num> getCpuTemp() async {
       lines.clear();
       result = lines = null;
       return temp;
-    } catch (e) {
+    } catch (e, stack) {
+      if (logAllExceptions) {
+        util.logger.warning("getCpuTemp", e, stack);
+      }
       return 0.0;
     }
   }
@@ -592,12 +629,15 @@ Future<num> getCpuTemp() async {
           num.parse(x.split(":")[1].split("°")[0].trim())
         ).toList();
 
-	var avg = temps.reduce((a, b) => a + b) / temps.length;
+	      var avg = temps.reduce((a, b) => a + b) / temps.length;
         lines.clear();
         lines = result = null;
         return avg;
       }
     } catch (e, stack) {
+      if (logAllExceptions) {
+        util.logger.warning("getCpuTemp", e, stack);
+      }
       return 0.0;
     }
   }
@@ -637,7 +677,10 @@ Future<String> getWmicString(String query) async {
       .trim();
 
     return out;
-  } catch (e) {
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getWmicString", e, stack);
+    }
     return null;
   }
 }
@@ -651,7 +694,10 @@ Future<num> getWmicNumber(String query) async {
       .skip(1)
       .toList();
     return num.parse(lines[0]);
-  } catch (e) {
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getWmicNumber", e, stack);
+    }
     return 0;
   }
 }
@@ -682,7 +728,10 @@ Future<Map<String, num>> getDiskUsage() async {
         "total": total,
         "percentage": (used / total) * 100
       };
-    } catch (e) {
+    } catch (e, stack) {
+      if (logAllExceptions) {
+        util.logger.warning("getDiskUsage", e, stack);
+      }
       return {};
     }
   } else if (Platform.isWindows) {
@@ -722,7 +771,11 @@ Future<bool> doesSupportModel() async {
     } else if (Platform.isWindows) {
       return true;
     }
-  } catch (e) {}
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("doesSupportModel", e, stack);
+    }
+  }
   return false;
 }
 
@@ -733,7 +786,7 @@ Future<String> getHardwareModel() async {
     } else if (Platform.isLinux) {
       var file = new File("/sys/devices/virtual/dmi/id/product_name");
       var content = await file.readAsString();
-      if (content.trim() == "To be filled by O.E.M.") {
+      if (content.contains("To be filled by O.E.M.")) {
         file = new File("/sys/devices/virtual/dmi/id/board_name");
         content = await file.readAsString();
       }
@@ -748,7 +801,10 @@ Future<String> getHardwareModel() async {
         return hw;
       }
     }
-  } catch (e) {
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getHardwareModel", e, stack);
+    }
   }
   return "Unknown";
 }
@@ -770,7 +826,10 @@ Future<String> getHardwareIdentifier() async {
       var result = await Process.run("getprop", const ["ro.serialno"]);
       return result.stdout.toString().trim();
     }
-  } catch (e) {
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getHardwareIdentifier", e, stack);
+    }
   }
   return "Unknown";
 }
@@ -815,7 +874,11 @@ Future<String> getProcessorName() async {
         return parts.skip(1).join(":");
       }
     }
-  } catch (e) {}
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getProcessorName", e, stack);
+    }
+  }
   return "Unknown";
 }
 
@@ -833,12 +896,13 @@ Future<int> getOpenFilesCount() async {
       result = out = null;
       return count;
     }
-  } catch (e) {}
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getOpenFilesCount", e, stack);
+    }
+  }
   return 0;
 }
-
-final RegExp WHITESPACE = new RegExp(r"\t|\n| ");
-final RegExp ROOT_DEV_REGEX = new RegExp(r"root=([^ ]*)");
 
 class ProcessInfo {
   final int pid;
@@ -863,7 +927,10 @@ Future<String> getRootDeviceName() async {
     }
 
     return device;
-  } catch (e) {
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getRootDeviceName", e, stack);
+    }
     return null;
   }
 }
@@ -915,7 +982,10 @@ Future<String> getProcessCommand(int pid) async {
     lines.removeWhere((a) => a.trim().isEmpty);
 
     return lines.last.trim();
-  } catch (e) {
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getProcessCommand", e, stack);
+    }
   }
 
   return "Unknown";
@@ -938,21 +1008,27 @@ Future<int> getProcessMemoryUsage(int pid) async {
     lines.removeWhere((a) => a.trim().isEmpty);
 
     return int.parse(lines.last.trim()) * 1024;
-  } catch (e) {
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getProcessMemoryUsage", e, stack);
+    }
   }
 
   return -1;
 }
 
 Future<int> getProcessOpenFiles(int pid) async {
-  if (Platform.isMacOS) {
+  if (!Platform.isLinux && !Platform.isAndroid) {
     return -1;
   }
 
   try {
     var dir = new Directory("/proc/${pid}/fd");
     return await dir.list(followLinks: false).length;
-  } catch (e) {
+  } catch (e, stack) {
+    if (logAllExceptions) {
+      util.logger.warning("getProcessOpenFiles", e, stack);
+    }
   }
 
   return -1;
@@ -992,7 +1068,8 @@ Future<List<Map<String, dynamic>>> dumpWmicQuery(String section) async {
 
       try {
         value = num.parse(value);
-      } catch (e) {}
+      } catch (e) {
+      }
 
       if (value == "TRUE" || value == "FALSE") {
         value = value == "TRUE";

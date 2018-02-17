@@ -25,6 +25,14 @@
     "offset_memory_disk_cache": {
       "type": "bool",
       "default": true
+    },
+    "linux_use_slow_cpu_usage": {
+      "type": "bool",
+      "default": false
+    },
+    "log_statistic_exceptions": {
+      "type": "bool",
+      "default": false
     }
   }
 }

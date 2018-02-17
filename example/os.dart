@@ -2,8 +2,12 @@ import "package:dslink_system/utils.dart";
 import "dart:io" as IO;
 
 main() async {
+  logAllExceptions = true;
+
   print("Operating System: ${await getOperatingSystemVersion()}");
+
   await getCpuUsage(); // Linux needs to have getCpuUsage() called twice
+
   print("CPU Usage: ${await getCpuUsage()}%");
   print("Total Memory: ${await getMemSizeBytes()} bytes");
   print("Free Memory: ${await getFreeMemory()} bytes");
