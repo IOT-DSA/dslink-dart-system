@@ -5,3 +5,4 @@ dependencies:
     git: https://github.com/IOT-DSA/sdk-dslink-dart.git
   path: any
   intl: any
+  collection: "1.12.0" # Fixes a bug with an uncompilable dependency.
