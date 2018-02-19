@@ -8,7 +8,9 @@ import "package:dslink/nodes.dart";
 import "package:dslink/utils.dart";
 
 import "package:dslink_system/utils.dart";
+import "package:dslink_system/lm_sensors.dart";
 import "package:dslink_system/io.dart";
+
 import "package:args/args.dart";
 
 const Map<String, String> iconFileNames = const <String, String>{
@@ -432,6 +434,12 @@ main(List<String> args) async {
     };
   }
 
+  if (await isLmSensorsAvailable()) {
+    NODES["Sensors"] = {
+      r"$name": "Sensors"
+    };
+  }
+
   if (Platform.isMacOS) {
     //* @Action Run_AppleScript
     //* @Is runAppleScript
@@ -790,6 +798,7 @@ SimpleNode batteryLevelNode = link["/Battery_Level"];
 SimpleNode systemTimeNode = link["/System_Time"];
 SimpleNode openFilesNode = link["/Open_Files"];
 SimpleNode networkInterfacesNode = link["/Network_Interfaces"];
+SimpleNode sensorsNode = link["/Sensors"];
 
 Map<String, SimpleNode> fanNodes = {};
 
@@ -909,6 +918,41 @@ update([bool shouldScheduleUpdate = true]) async {
     }
   } catch (e, stack) {
     logger.warning("Error in statistic updater.", e, stack);
+  }
+
+  if (sensorsNode != null) {
+    var sensorData = await getLmSensorData();
+    for (var sensorType in sensorData.keys) {
+      SimpleNode sensorTypeNode = sensorsNode.getChild(sensorType);
+      if (sensorTypeNode == null) {
+        sensorTypeNode = link.addNode("${sensorsNode.path}/${sensorType}", {
+          r"$name": sensorType
+        });
+      }
+
+      var data = sensorData[sensorType];
+
+      for (var name in data.keys) {
+        var fakeName = name.replaceAll(" ", "_");
+        var sensorValue = data[name];
+
+        SimpleNode sensorNode = sensorTypeNode.getChild(fakeName);
+
+        if (sensorNode == null) {
+          sensorNode = link.addNode("${sensorTypeNode.path}/${fakeName}", {
+            r"$name": name,
+            r"$type": "number",
+            "?value": sensorValue.value
+          });
+
+          if (sensorValue.unit != null) {
+            sensorNode.attributes["@unit"] = sensorValue.unit;
+          }
+        } else {
+          sensorNode.updateValue(sensorValue.value);
+        }
+      }
+    }
   }
 
   try {
