@@ -5,6 +5,8 @@ import "dart:io";
 
 import "utils.dart" as util;
 
+import "package:dslink/utils.dart" show logger;
+
 final RegExp rawValuePattern = new RegExp(r"[+-.0-9]+");
 
 class SensorValue {
@@ -111,10 +113,11 @@ Future<Map<String, Map<String, SensorValue>>> getLmSensorData({
     }
 
     return parseSensorsOutput(result.stdout.toString());
-  } catch (e) {
+  } catch (e, stack) {
     if (!graceful) {
       rethrow;
     }
+    logger.fine("Fetching Linux sensor data failed.", e, stack);
     return <String, Map<String, SensorValue>>{};
   }
 }
