@@ -22,6 +22,8 @@ const Map<String, String> iconFileNames = const <String, String>{
 LinkProvider link;
 
 bool secureMode = false;
+bool enableLmSensorsRawMode = false;
+bool enableLmSensorsFahrenheitMode = false;
 bool enableDsaDiagnosticMode = false;
 
 typedef SimpleNode Profile(String path);
@@ -648,6 +650,18 @@ main(List<String> args) async {
     valueHelp: "true/false",
     defaultsTo: "true");
 
+  argp.addOption("lmsensors_fahrenheit_mode", callback: (value) {
+    enableLmSensorsFahrenheitMode = getInputBoolean(value);
+  }, help: "Enable Fahrenheit Mode for Linux Sensors",
+    valueHelp: "true/false",
+    defaultsTo: "false");
+
+  argp.addOption("lmsensors_raw_mode", callback: (value) {
+    enableLmSensorsRawMode = getInputBoolean(value);
+  }, help: "Enable Raw Mode for Linux Sensors",
+    valueHelp: "true/false",
+    defaultsTo: "false");
+
   String baseDir = Platform.script.resolve("..").toFilePath();
 
   link.configure(argp: argp, optionsHandler: (ArgResults res) {
@@ -921,7 +935,10 @@ update([bool shouldScheduleUpdate = true]) async {
   }
 
   if (sensorsNode != null) {
-    var sensorData = await getLmSensorData();
+    var sensorData = await getLmSensorData(
+      friendly: !enableLmSensorsRawMode,
+      fahrenheit: enableLmSensorsFahrenheitMode
+    );
     for (var sensorType in sensorData.keys) {
       SimpleNode sensorTypeNode = sensorsNode.getChild(sensorType);
       if (sensorTypeNode == null) {
@@ -945,7 +962,7 @@ update([bool shouldScheduleUpdate = true]) async {
             "?value": sensorValue.value
           });
 
-          if (sensorValue.unit != null) {
+          if (sensorValue.unit != null && sensorValue.unit.isNotEmpty) {
             sensorNode.attributes["@unit"] = sensorValue.unit;
           }
         } else {
