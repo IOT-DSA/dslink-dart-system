@@ -28,23 +28,37 @@ Map<String, Map<String, SensorValue>> parseSensorsOutput(String input) {
     if (line.isEmpty) {
       continue;
     }
+    
+    if (line.startsWith("   ")) { // 3 spaces means it's a continuation.
+      continue;
+    }
 
     if (line.contains(":")) {
       if (
-        (line.startsWith("  ") ||
-        !line.startsWith("Adapter")) &&
-        currentSection != null) {
+        (
+          line.startsWith("  ") || !line.startsWith("Adapter")
+        ) && currentSection != null // Is this a value point?
+      ) {
         var name = line.substring(
           line.startsWith(" ") ? line.indexOf(" ") : 0,
           line.indexOf(":")
         );
 
         var range = line.lastIndexOf("(");
-        var valueContent = line.substring(
-          line.indexOf(":") + 1,
-          range == -1 ? null : range
-        ).trim();
 
+        String valueContent;
+
+        if (range == -1) {
+          valueContent = line.substring(line.lastIndexOf(":") + 1);
+          if (valueContent.isEmpty) { // Subsection.
+            continue;
+          }
+        } else {
+          valueContent = line.substring(
+            line.indexOf(":") + 1,
+            range == -1 ? null : range
+          ).trim();
+        }
         var rawValue = rawValuePattern.firstMatch(valueContent).group(0);
         var unitsLeft = valueContent.replaceAll(rawValue, "").trim();
         
@@ -74,15 +88,26 @@ Future<bool> isLmSensorsAvailable() async {
 
 Future<Map<String, Map<String, SensorValue>>> getLmSensorData({
   bool fahrenheit: false,
-  bool graceful: true
+  bool graceful: true,
+  bool friendly: true
 }) async {
   try {
     var path = await util.findExecutable("sensors");
 
-    var result = await Process.run(path, fahrenheit ? const ["-f"] : const []);
+    var args = <String>[];
+
+    if (fahrenheit) {
+      args.add("-f");
+    }
+
+    if (!friendly) {
+      args.add("-u");
+    }
+
+    var result = await Process.run(path, args);
 
     if (result.exitCode != 0) {
-      return {};
+      return <String, Map<String, SensorValue>>{};
     }
 
     return parseSensorsOutput(result.stdout.toString());
