@@ -8,7 +8,9 @@ import "package:dslink/nodes.dart";
 import "package:dslink/utils.dart";
 
 import "package:dslink_system/utils.dart";
+import "package:dslink_system/lm_sensors.dart";
 import "package:dslink_system/io.dart";
+
 import "package:args/args.dart";
 
 const Map<String, String> iconFileNames = const <String, String>{
@@ -20,6 +22,8 @@ const Map<String, String> iconFileNames = const <String, String>{
 LinkProvider link;
 
 bool secureMode = false;
+bool enableLmSensorsRawMode = false;
+bool enableLmSensorsFahrenheitMode = false;
 bool enableDsaDiagnosticMode = false;
 
 typedef SimpleNode Profile(String path);
@@ -432,6 +436,12 @@ main(List<String> args) async {
     };
   }
 
+  if (await isLmSensorsAvailable()) {
+    NODES["Sensors"] = {
+      r"$name": "Sensors"
+    };
+  }
+
   if (Platform.isMacOS) {
     //* @Action Run_AppleScript
     //* @Is runAppleScript
@@ -640,6 +650,18 @@ main(List<String> args) async {
     valueHelp: "true/false",
     defaultsTo: "true");
 
+  argp.addOption("lmsensors_fahrenheit_mode", callback: (value) {
+    enableLmSensorsFahrenheitMode = getInputBoolean(value);
+  }, help: "Enable Fahrenheit Mode for Linux Sensors",
+    valueHelp: "true/false",
+    defaultsTo: "false");
+
+  argp.addOption("lmsensors_raw_mode", callback: (value) {
+    enableLmSensorsRawMode = getInputBoolean(value);
+  }, help: "Enable Raw Mode for Linux Sensors",
+    valueHelp: "true/false",
+    defaultsTo: "false");
+
   String baseDir = Platform.script.resolve("..").toFilePath();
 
   link.configure(argp: argp, optionsHandler: (ArgResults res) {
@@ -790,6 +812,7 @@ SimpleNode batteryLevelNode = link["/Battery_Level"];
 SimpleNode systemTimeNode = link["/System_Time"];
 SimpleNode openFilesNode = link["/Open_Files"];
 SimpleNode networkInterfacesNode = link["/Network_Interfaces"];
+SimpleNode sensorsNode = link["/Sensors"];
 
 Map<String, SimpleNode> fanNodes = {};
 
@@ -909,6 +932,44 @@ update([bool shouldScheduleUpdate = true]) async {
     }
   } catch (e, stack) {
     logger.warning("Error in statistic updater.", e, stack);
+  }
+
+  if (sensorsNode != null) {
+    var sensorData = await getLmSensorData(
+      friendly: !enableLmSensorsRawMode,
+      fahrenheit: enableLmSensorsFahrenheitMode
+    );
+    for (var sensorType in sensorData.keys) {
+      SimpleNode sensorTypeNode = sensorsNode.getChild(sensorType);
+      if (sensorTypeNode == null) {
+        sensorTypeNode = link.addNode("${sensorsNode.path}/${sensorType}", {
+          r"$name": sensorType
+        });
+      }
+
+      var data = sensorData[sensorType];
+
+      for (var name in data.keys) {
+        var fakeName = name.replaceAll(" ", "_");
+        var sensorValue = data[name];
+
+        SimpleNode sensorNode = sensorTypeNode.getChild(fakeName);
+
+        if (sensorNode == null) {
+          sensorNode = link.addNode("${sensorTypeNode.path}/${fakeName}", {
+            r"$name": name,
+            r"$type": "number",
+            "?value": sensorValue.value
+          });
+
+          if (sensorValue.unit != null && sensorValue.unit.isNotEmpty) {
+            sensorNode.attributes["@unit"] = sensorValue.unit;
+          }
+        } else {
+          sensorNode.updateValue(sensorValue.value);
+        }
+      }
+    }
   }
 
   try {

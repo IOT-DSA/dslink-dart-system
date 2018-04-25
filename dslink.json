@@ -25,6 +25,14 @@
     "offset_memory_disk_cache": {
       "type": "bool",
       "default": true
+    },
+    "lmsensors_raw_mode": {
+      "type": "bool",
+      "default": false
+    },
+    "lmsensors_fahrenheit_mode": {
+      "type": "bool",
+      "default": false
     }
   }
 }
